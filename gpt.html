@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Directional Light and Shaded Cube</title>
+<style>
+    canvas {
+        border: 1px solid black;
+    }
+</style>
+</head>
+<body>
+<canvas id="myCanvas" width="400" height="400"></canvas>
+
+<script>
+    const canvas = document.getElementById('myCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // Define cube vertices
+    const vertices = [
+        [50, 50, 50],
+        [150, 50, 50],
+        [150, 150, 50],
+        [50, 150, 50],
+        [50, 50, 150],
+        [150, 50, 150],
+        [150, 150, 150],
+        [50, 150, 150]
+    ];
+
+    // Define cube faces
+    const faces = [
+        [0, 1, 2, 3], // Front face
+        [4, 5, 6, 7], // Back face
+        [0, 1, 5, 4], // Top face
+        [2, 3, 7, 6], // Bottom face
+        [1, 2, 6, 5], // Right face
+        [0, 3, 7, 4]  // Left face
+    ];
+
+    // Initialize light direction
+    let lightDirection = [0.5, -0.5, -0.5]; // Example direction
+
+    // Calculate surface normals for each face
+    const normals = [
+        [0, 0, -1], // Front face
+        [0, 0, 1],  // Back face
+        [0, 1, 0],  // Top face
+        [0, -1, 0], // Bottom face
+        [1, 0, 0],  // Right face
+        [-1, 0, 0]  // Left face
+    ];
+
+    // Calculate dot product of two vectors
+    function dotProduct(a, b) {
+        return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+    }
+
+    // Draw cube with shading and fill
+    function drawShadedCube() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        for (let i = 0; i < faces.length; i++) {
+            const face = faces[i];
+            const faceVertices = face.map(index => vertices[index]);
+
+            // Calculate face normal
+            const normal = normals[i];
+
+            // Calculate shading intensity using Lambert's cosine law
+            const cosAngle = dotProduct(normal, lightDirection);
+            const shade = Math.max(cosAngle, 0); // Ensure shading is within [0, 1]
+
+            // Interpolate color based on shading intensity
+            const shadeColor = Math.floor(255 * shade);
+            ctx.fillStyle = `rgb(${shadeColor}, 0, 0)`;
+
+            // Draw filled face
+            ctx.beginPath();
+            ctx.moveTo(faceVertices[0][0], faceVertices[0][1]);
+            for (let j = 1; j < faceVertices.length; j++) {
+                ctx.lineTo(faceVertices[j][0], faceVertices[j][1]);
+            }
+            ctx.closePath();
+            ctx.fill();
+        }
+    }
+
+    // Animation function to update light direction
+    function animate() {
+        const time = Date.now() * 0.001; // Convert milliseconds to seconds
+        const angle = time; // Change this for different motion patterns
+
+        // Update light direction based on time
+        lightDirection = [
+            Math.cos(angle),
+            Math.sin(angle),
+            -Math.sin(angle)
+        ];
+
+        drawShadedCube();
+
+        // Request the next animation frame
+        requestAnimationFrame(animate);
+    }
+
+    animate();
+</script>
+</body>
+</html>
