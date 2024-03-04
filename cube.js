@@ -1,3 +1,5 @@
+import { Vector, Point } from './math.js';
+
 export class Cube {
     constructor() {
         this.vertices = [
@@ -31,6 +33,28 @@ export class Cube {
         return this.vertices;
     }
 
+    isInwards(origin, direction) {
+        // Let origin, direction define the vector V originating at point P
+        // Let O be the center of the shape
+        // PV is directed outwards iff dotProduct(OP, PV) < 0
+        // Since the cube is centered at the origin, this
+        // actually amounts to P * (V - P) = PV - PP < 0
+        return origin.dotProduct(direction.sub(origin)) < 0;
+    }
+
+    getFaceNormal(i) {
+        let face = this.faces[i];
+        // Assume face.length >= 3
+        let A = new Vector(...this.vertices[face[0]]);
+        let B = new Vector(...this.vertices[face[1]]);
+        let C = new Vector(...this.vertices[face[2]]);
+        let AB = B.sub(A);
+        let AC = C.sub(A);
+        let normal = AB.crossProduct(AC).normalize();
+        let shouldFlip = this.isInwards(A, normal);
+        return shouldFlip ? normal.neg() : normal;
+    }
+    
     getFaces() {
         return this.faces;
     }
