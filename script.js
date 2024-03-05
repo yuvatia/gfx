@@ -1,253 +1,8 @@
-import { Cube, Icosahedron, makeIcosphere } from "./cube.js";
+import { Cube, Icosahedron, makeGrid, makeIcosphere, makeRect } from "./geometry.js";
 import { SignalEmitter } from "./signal_emitter.js";
 import { Point, Vector, Matrix } from "./math.js"
-
-function createRotationMatrixX(angle) {
-    const radians = angle * Math.PI / 180;
-    const cos = Math.cos(radians);
-    const sin = Math.sin(radians);
-
-    return new Matrix([
-        1, 0, 0, 0,
-        0, cos, sin, 0,
-        0, -sin, cos, 0,
-        0, 0, 0, 1
-    ]);
-}
-
-function createRotationMatrixY(angle) {
-    const radians = angle * Math.PI / 180;
-    const cos = Math.cos(radians);
-    const sin = Math.sin(radians);
-
-    return new Matrix([
-        cos, 0, -sin, 0,
-        0, 1, 0, 0,
-        sin, 0, cos, 0,
-        0, 0, 0, 1
-    ]);
-}
-
-function createRotationMatrixZ(angle) {
-    const radians = angle * Math.PI / 180;
-    const cos = Math.cos(radians);
-    const sin = Math.sin(radians);
-
-    return new Matrix([
-        cos, sin, 0, 0,
-        -sin, cos, 0, 0,
-        0, 0, 1, 0,
-        0, 0, 0, 1
-    ]);
-}
-
-function createTranslationMatrix(translationVector) {
-    const [x, y, z] = translationVector.toArray();
-    return new Matrix([
-        1, 0, 0, x,
-        0, 1, 0, y,
-        0, 0, 1, z,
-        0, 0, 0, 1
-    ]);
-}
-
-function createScaleMatrix(scaleVector) {
-    const [x, y, z] = scaleVector.toArray();
-    return new Matrix([
-        x, 0, 0, 0,
-        0, y, 0, 0,
-        0, 0, z, 0,
-        0, 0, 0, 1
-    ]);
-}
-
-function createRotationMatrixXYZ(xRot, yRot, zRot) {
-    const rotationX = createRotationMatrixX(xRot);
-    const rotationY = createRotationMatrixY(yRot);
-    const rotationZ = createRotationMatrixZ(zRot);
-    const rotationXYZ = rotationX.multiplyMatrix(rotationY).multiplyMatrix(rotationZ);
-    return rotationXYZ;
-}
-
-function createaAxisAngleRotationMatrix(axis, angle) {
-    // Angle is in degrees
-    const theta = angle * Math.PI / 180;
-    // Get axis coords
-    const [x, y, z] = axis.toArray();
-
-    // Rodriguez' formula in column-major matrix form
-    const cosTheta = Math.cos(theta);
-    const sinTheta = Math.sin(theta);
-    const oneMinusCosTheta = 1 - cosTheta;
-
-    const xx = x * x;
-    const xy = x * y;
-    const xz = x * z;
-    const yy = y * y;
-    const yz = y * z;
-    const zz = z * z;
-
-    const xSinTheta = x * sinTheta;
-    const ySinTheta = y * sinTheta;
-    const zSinTheta = z * sinTheta;
-
-    const rotationMatrix = new Matrix([
-        xx * oneMinusCosTheta + cosTheta, xy * oneMinusCosTheta - zSinTheta, xz * oneMinusCosTheta + ySinTheta, 0,
-        xy * oneMinusCosTheta + zSinTheta, yy * oneMinusCosTheta + cosTheta, yz * oneMinusCosTheta - xSinTheta, 0,
-        xz * oneMinusCosTheta - ySinTheta, yz * oneMinusCosTheta + xSinTheta, zz * oneMinusCosTheta + cosTheta, 0,
-        0, 0, 0, 1
-    ]);
-
-    return rotationMatrix;
-}
-
-function invertRotation(rotationMatrix) {
-    return rotationMatrix.transpose();
-}
-
-function invertScale(scaleMatrix) {
-    const [x, y, z] = [1 / scaleMatrix[0], 1 / scaleMatrix[5], 1 / scaleMatrix[10]];
-    return createScaleMatrix(new Vector(x, y, z));
-}
-
-function invertTranslation(translationMatrix) {
-    let inverted = new Matrix(translationMatrix.elements);
-    inverted.elements[4] = -inverted.elements[4];
-    inverted.elements[8] = -inverted.elements[8];
-    inverted.elements[12] = -inverted.elements[12];
-    return inverted;
-}
-
-function createTransformationMatrix(translationVector, rotationEuler = new Point(0, 0, 0), scaleVector = new Point(1, 1, 1)) {
-    const translation = createTranslationMatrix(translationVector);
-    const rotationXYZ = createRotationMatrixXYZ(...rotationEuler.toArray());
-    const scale = createScaleMatrix(scaleVector);
-    // Note: order is important. First we scale, then rotate (still origin is preserved), only then do we translate.
-    // Order of rotation/scale seems unimportant however order of translation vs rotation is important because
-    // rotation is around the origin.
-    return translation.multiplyMatrix(rotationXYZ).multiplyMatrix(scale);
-    return scale.multiplyMatrix(rotationXYZ).multiplyMatrix(translation);
-}
-
-
-function CreateOrthographicMatrix(left, right, bottom, top, near, far) {
-    // Transform some box shape defined by A(left, bottom, near) and B(right, top, far) to a unit cube
-    // We do this by applying a transformation + scale.
-    // Also note that we look down on the Z axis which is why there is 
-    // a minus in the Z column
-    return new Matrix([
-        2 / (right - left), 0, 0, -(right + left) / (right - left),
-        0, 2 / (top - bottom), 0, -(top + bottom) / (top - bottom),
-        0, 0, -2 / (far - near), -(far + near) / (far - near),
-        0, 0, 0, 1
-    ]);
-}
-
-function CreatePerspectiveMatrix(near, far) {
-    return new Matrix([
-        near, 0, 0, 0,
-        0, near, 0, 0,
-        0, 0, far + near, - far * near,
-        0, 0, -1, 0
-    ]);
-}
-
-function CreateSymmetricOrthographicProjection(fov, aspect, near, far) {
-    // Assuming symmetry, we know that ortho is actually given by (left, -left, bottom, -bottom, near, far)
-    // so we only need to find left and top
-    const fovRadians = fov * Math.PI / 180;
-    const top = near * Math.tan(fovRadians / 2);
-    const bottom = -top;
-    const left = bottom * aspect;
-    const right = top * aspect;
-    const ortho = CreateOrthographicMatrix(left, right, bottom, top, near, far);
-    return ortho;
-}
-
-function CreatePerspectiveProjection(fov, aspect, near, far) {
-    /*
-    Short path
-    */
-    // const fovRadians = fov * Math.PI / 180;
-    // const f = 1 / Math.tan(fovRadians / 2);
-    // return new Matrix([
-    //     f / aspect, 0, 0, 0,
-    //     0, f, 0, 0,
-    //     0, 0, (far + near) / (near - far), (2 * far * near) / (near - far),
-    //     0, 0, -1, 0
-    // ]);
-
-    /*
-    Long path
-    */
-    const ortho = CreateSymmetricOrthographicProjection(fov, aspect, near, far);
-    const persp = CreatePerspectiveMatrix(near, far);
-    // row-major: First apply perspective, then ortho
-    // however, since we use column-major, we do persp*ortho
-    return persp.multiplyMatrix(ortho);
-    return ortho.multiplyMatrix(persp);
-}
-
-class Camera {
-    constructor() {
-        this.position = new Vector(0, 0, -1000);
-        this.rotation = new Vector(1, 0, 0);
-        this.validateViewMatrix();
-
-        // Listen for button changes
-        document.addEventListener('keydown', (event) => {
-            if (event.shiftKey) {
-                if (event.key === 'W') {
-                    console.log('here');
-                    this.adjustPosition(new Vector(0, 50, 0));
-                } else if (event.key === 'S') {
-                    this.adjustPosition(new Vector(0, -50, 0));
-                } else if (event.key === 'A') {
-                    this.adjustPosition(new Vector(-50, 0, 0));
-                } else if (event.key === 'D') {
-                    this.adjustPosition(new Vector(50, 0, 0));
-                } else if (event.key === 'Z') {
-                    this.adjustPosition(new Vector(0, 0, 100));
-                } else if (event.key === 'X') {
-                    this.adjustPosition(new Vector(0, 0, -100));
-                }
-            }
-            // If ctrl is pressed then we use the same buttons but to adjust rotation
-            if (event.altKey) {
-                if (event.key === 'w') {
-                    this.rotation = this.rotation.add(new Vector(1, 0, 0));
-                } else if (event.key === 's') {
-                    this.rotation = this.rotation.add(new Vector(-1, 0, 0));
-                } else if (event.key === 'a') {
-                    this.rotation = this.rotation.add(new Vector(0, 1, 0));
-                } else if (event.key === 'd') {
-                    this.rotation = this.rotation.add(new Vector(0, -1, 0));
-                } else if (event.key === 'z') {
-                    this.rotation = this.rotation.add(new Vector(0, 0, 1));
-                } else if (event.key === 'x') {
-                    this.rotation = this.rotation.add(new Vector(0, 0, -1));
-                }
-                this.validateViewMatrix();
-            }
-        });
-    }
-
-    validateViewMatrix() {
-        this.viewMatrix = createTransformationMatrix(
-            new Vector(this.position.x, this.position.y, -this.position.z),
-            this.rotation
-        )
-    }
-
-    adjustPosition(positionDelta) {
-        this.position = this.position.add(positionDelta);
-        this.validateViewMatrix();
-    }
-
-    getViewMatrix() {
-        return this.viewMatrix;
-    }
-}
+import { Camera } from "./camera.js";
+import { createTransformationMatrix, createRotationMatrixX, createRotationMatrixY, createRotationMatrixZ, createTranslationMatrix, createScaleMatrix, createaAxisAngleRotationMatrix, CreatePerspectiveProjection, CreateSymmetricOrthographicProjection, invertTranslation } from "./affine.js";
 
 class Renderer {
     constructor(canvas) {
@@ -288,7 +43,6 @@ class Renderer {
         const camTInverse = invertTranslation(camT);
         const arcballRotation = camT.multiplyMatrix(this.finalRotationMat).multiplyMatrix(camTInverse); // T*R*T^-1
         return arcballRotation.multiplyPoint(eyeSpace);
-
     }
 
     eyeToClip(point) {
@@ -304,7 +58,7 @@ class Renderer {
         return point.multiply(1 / point.w);
     }
 
-    project3Dto2D(point) {
+    project3Dto2D(point, applyPerspectiveDivision = true) {
         const eyeSpace = this.worldToEye(point);
         const clipSpace = this.eyeToClip(eyeSpace);
 
@@ -320,7 +74,7 @@ class Renderer {
             }
         }
 
-        const ndc = this.perspectiveDivision(clipSpace);
+        const ndc = applyPerspectiveDivision ? this.perspectiveDivision(clipSpace) : clipSpace;
         return ndc;
     }
 
@@ -390,20 +144,18 @@ class Renderer {
         // Convert dt to frameRate
         const frameRate = (1000 / dt);
 
-        this.drawGrid();
+        // this.drawXYGrid2D();
 
         this.ctx.fillText(`FPS: ${frameRate.toFixed(0)}`, this.canvas.width - 100, 20);
-
+        this.ctx.fillText(`Camera: ${this.camera.position.toString()}`, this.canvas.width - 250, 40);
         this.ctx.restore();
     }
 
-    drawGrid(cellWidth = 10) {
+    drawXYGrid2D(cellWidth = 10) {
         // Draws XY grid. cellWidth in pixels
 
         let determinePos = (x, y) => {
             return [x, y];
-            // return transform.multiplyPoint(new Point(x, y)).toArray();
-            // return this.determineXY(new Point(x, y), transform).toArray();
         }
 
         this.ctx.beginPath();
@@ -423,9 +175,9 @@ class Renderer {
         }
     }
 
-    determineXY(p, transform = new Matrix()) {
+    determineXY(p, transform = new Matrix(), applyPerspectiveDivision = true) {
         const worldSpace = transform.multiplyPoint(p);
-        const clipSpace = this.project3Dto2D(worldSpace);
+        const clipSpace = this.project3Dto2D(worldSpace, applyPerspectiveDivision);
         // return worldSpace;
         return clipSpace;
     }
@@ -457,7 +209,7 @@ class Renderer {
         // this.drawText(x, y, transform.toString(), 10, color);
     }
 
-    drawPath(path, transform = new Matrix(), color = "black", drawPoints = false) {
+    drawPath(path, transform = new Matrix(), color = "black", fill = true, applyPerspectiveDivision = true, drawPoints = false) {
         if (drawPoints) {
             path.forEach(p => {
                 this.drawPoint(p, false, transform, color);
@@ -470,7 +222,7 @@ class Renderer {
 
         let screenPath = [];
         path.forEach(p => {
-            let screenPoint = this.determineXY(p, transform);
+            let screenPoint = this.determineXY(p, transform, applyPerspectiveDivision);
             screenPath.push(screenPoint);
         });
 
@@ -502,7 +254,7 @@ class Renderer {
             this.ctx.lineTo(x, y);
         });
         // Fill volume enclosed by path (if any)
-        this.ctx.fill();
+        if (fill) { this.ctx.fill(); }
         this.ctx.closePath();
         this.ctx.stroke();
     }
@@ -639,8 +391,9 @@ const main = () => {
     let p1 = new Point(4, 20, 0);
     let p2 = new Point(100, 30, 0);
 
-    // const cube = new Cube();
-    const cube = makeIcosphere(3);
+    const cube = new Cube();
+    const grid = makeGrid();
+    // const cube = makeIcosphere(3);
     const verts = cube.getVertices();
 
     // Generate n model matrices with different positions and rotations
@@ -661,7 +414,8 @@ const main = () => {
         )
     }
     cubeModelMatrices.push(createScaleMatrix(new Vector(100, 100, 100)));
-    cubeModelMatrices = [cubeModelMatrices.pop()];
+    // cubeModelMatrices = [];
+    // cubeModelMatrices = [cubeModelMatrices.pop()];
 
     const tick = (timestamp) => {
         if (!lastFrameTime) lastFrameTime = timestamp;
@@ -671,6 +425,16 @@ const main = () => {
             lastFrameTime = timestamp - (elapsed % fpsInterval);
             const updateFrame = () => {
                 renderer.start(elapsed);
+                grid.getFaces().forEach((indices) => {
+                    const faceVerts = indices.map((index) => new Point(...grid.getVertices()[index]));
+                    renderer.drawPath(
+                        faceVerts,
+                        createScaleMatrix(new Vector(20, 20, 0)),
+                        "gray",
+                        false,
+                        true,
+                        false);
+                });
                 signalEmitter.signalAll();
 
                 const time = timestamp * 0.001;
@@ -717,17 +481,18 @@ const main = () => {
                         let worldNormal = modelMatrix.multiplyVector(faceNormal).normalize();
 
                         let brightness = lightIntensity * Math.max(directionalLight.dotProduct(worldNormal), 0);
-                        const combinedColor = new Point(
+                        const combinedColor = new Vector(
                             lightColor.x * cubeDiffuseColor.x,
                             lightColor.y * cubeDiffuseColor.y,
                             lightColor.z * cubeDiffuseColor.z);
                         // const diffuse = lightColor.multiply(brightness);
-                        const diffuse = combinedColor.multiply(brightness); // TODO: account for own color
+                        const diffuse = combinedColor.scale(brightness); // TODO: account for own color
                         const faceColor = renderer.shadingControl ? `rgba(${diffuse.x}, ${diffuse.y}, ${diffuse.z}, 1)` : colorNames[i % colorNames.length];
                         renderer.drawPath(
                             faceVerts,
                             modelMatrix,
-                            faceColor
+                            faceColor,
+                            !document.getElementById("wireframeMode").checked
                             // `rgba(${i * 30}, ${i * 30}, ${i * 10}, 1)`
                         );
                     });
@@ -769,7 +534,7 @@ Bugs:
 7. axis angle rotation - maybe has an issue? handedness weirdness + seems weird when rotating around arbitray axis
 
 Regarding:
-1. seems to be a bigger issue where handedness is just inverted in general, which leads to the confusion.
+1. TODO - seems to be a bigger issue where handedness is just inverted in general, which leads to the confusion.
 2. seems to have been an issue with determineXY where i artifically introduced a bias which would accumulate
 3. solved, order should have been P*O and not O*P, has to do with major
 4. fixed, now done only when applying perspective
@@ -781,16 +546,12 @@ Regarding:
 
 /*
 TODOs:
-1. Basic shading
-2. backface culling by z ordering
-3. clipping
-4. rotate grid properly
+1. grid rotation -- Done with grid mesh
+2. arcball should actually effect camera rotation and accumulate
+3. shadows?
+4. clipping
 
-regarding shading, what we want to do is:
-1. Associate each pixel with a normal. This is pretty much how deferred shading is done.
-2. Have a directional light source (or point light source) and calculate the dot product between the normal and the light direction.
-3. Use the dot product to calculate the color of the pixel.
-We need to decide between Blinn and Phong shading.
-Let's start with figuring out how to associate a pixel with a normal. To do this we first need to be able to color each pixel and not
-use the fill method.
+Regarding shadows:
+Shadows are essentially just the projection of the nearest object
+unto the further object.
 */

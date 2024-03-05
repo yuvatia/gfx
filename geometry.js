@@ -190,3 +190,41 @@ export function makeIcosphere(subdivisions = 0) {
     
     return new Mesh(vertices, triangles);
 }
+
+export function makeRect() {
+    let vertices = [
+        [-0.5, -0.5, 0],
+        [0.5, -0.5, 0],
+        [0.5, 0.5, 0],
+        [-0.5, 0.5, 0]
+    ];
+    // CCW
+    let faces = [
+        [3, 2, 1, 0]
+    ];
+    
+    return new Mesh(vertices, faces);
+}
+
+
+export function makeGrid() {
+    // A grid consists of a bunch of rect
+    let vertices = [];
+    let faces = [];
+    let size = 20;
+    let step = 1;
+    for (let x = -size; x <= size; x += step) {
+        for (let y = -size; y <= size; y += step) {
+            let rect = makeRect();
+            rect.vertices = rect.vertices.map(vertex => [vertex[0] + x, vertex[1] + y, vertex[2]]);
+            rect.faces = rect.faces.map(face => face.map(index => index + vertices.length));
+            vertices.push(...rect.vertices);
+            faces.push(...rect.faces);
+            // Also add face in other winding order
+            // because we want the grid to be double-sided
+            let reversed = rect.faces.map(face => face.slice().reverse());
+            faces.push(...reversed);
+        }
+    }
+    return new Mesh(vertices, faces);
+}
