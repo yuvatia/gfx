@@ -1,6 +1,6 @@
-import { Cube } from "./cube.js";
+import { Cube, Icosahedron, makeIcosphere } from "./cube.js";
 import { SignalEmitter } from "./signal_emitter.js";
-import { Point, Vector, Matrix} from "./math.js"
+import { Point, Vector, Matrix } from "./math.js"
 
 function createRotationMatrixX(angle) {
     const radians = angle * Math.PI / 180;
@@ -251,6 +251,9 @@ class Camera {
 
 class Renderer {
     constructor(canvas) {
+        this.backfaceCulling = true;
+        this.shadingControl = true;
+
         this.canvas = canvas;
         this.ctx = canvas.getContext("2d");
         this.projectionMatrix = new Matrix();
@@ -341,7 +344,7 @@ class Renderer {
         let thetaDegrees = theta * 180 / Math.PI;
         // axis is defined by cross product
         let axis = v0.crossProduct(v1).normalize();
-        console.log(`${thetaDegrees} angle`);
+        // console.log(`${thetaDegrees} angle`);
         // TODO negated due to handedness issue perhaps?
         thetaDegrees = -thetaDegrees;
         let rotationMat = createaAxisAngleRotationMatrix(axis, thetaDegrees);
@@ -454,30 +457,54 @@ class Renderer {
         // this.drawText(x, y, transform.toString(), 10, color);
     }
 
-    drawPath(path, transform = new Matrix(), color = "black") {
+    drawPath(path, transform = new Matrix(), color = "black", drawPoints = false) {
+        if (drawPoints) {
+            path.forEach(p => {
+                this.drawPoint(p, false, transform, color);
+            });
+        }
+
         this.ctx.beginPath();
         this.ctx.strokeStyle = color;
         this.ctx.fillStyle = color;
 
-        let screenPoint = this.determineXY(path[0], transform);
-        if (screenPoint != null) {
-            this.ctx.moveTo(...screenPoint.toArray());
+        let screenPath = [];
+        path.forEach(p => {
+            let screenPoint = this.determineXY(p, transform);
+            screenPath.push(screenPoint);
+        });
+
+        /*
+        backface culling
+        */
+        if (screenPath.length >= 3) {
+            let a = new Vector(...screenPath[0].toArray());
+            let b = new Vector(...screenPath[1].toArray());
+            let c = new Vector(...screenPath[2].toArray());
+            let ab = b.sub(a);
+            let ac = c.sub(b);
+            // see if normal is facing in positive z or not
+            // See https://gamedev.stackexchange.com/questions/203694/how-to-make-backface-culling-work-correctly-in-both-orthographic-and-perspective
+            let sign = ab.x * ac.y - ac.x * ab.y;
+            let isBackface = sign > 0;  // Sign reversed due to handedness
+            if (isBackface && this.backfaceCulling) {
+                return;
+            }
+        }
+
+        if (screenPath[0] != null) {
+            this.ctx.moveTo(...screenPath[0].toArray());
 
         }
-        path.forEach(p => {
-            screenPoint = this.determineXY(p, transform);
-            if (screenPoint === null) return;
-            const [x, y, z] = screenPoint.toArray();
+        screenPath.forEach(p => {
+            if (p === null) return;
+            const [x, y, z] = p.toArray();
             this.ctx.lineTo(x, y);
         });
         // Fill volume enclosed by path (if any)
         this.ctx.fill();
         this.ctx.closePath();
         this.ctx.stroke();
-
-        path.forEach(p => {
-            this.drawPoint(p, false, transform, color);
-        });
     }
 
     drawPath2D(path, color = "black", debugDraw = false) {
@@ -612,7 +639,8 @@ const main = () => {
     let p1 = new Point(4, 20, 0);
     let p2 = new Point(100, 30, 0);
 
-    const cube = new Cube();
+    // const cube = new Cube();
+    const cube = makeIcosphere(3);
     const verts = cube.getVertices();
 
     // Generate n model matrices with different positions and rotations
@@ -632,6 +660,8 @@ const main = () => {
             )
         )
     }
+    cubeModelMatrices.push(createScaleMatrix(new Vector(100, 100, 100)));
+    cubeModelMatrices = [cubeModelMatrices.pop()];
 
     const tick = (timestamp) => {
         if (!lastFrameTime) lastFrameTime = timestamp;
@@ -663,12 +693,21 @@ const main = () => {
                 // shine towards Z axis
                 let directionalLight = new Vector(0, 0, 1).normalize();
                 // But actually move around in a circle
-                let xRot = 0;
-                directionalLight = createRotationMatrixX(timestamp * 0.1).multiplyVector(directionalLight);
+                directionalLight = createRotationMatrixX(timestamp * 0.03).multiplyVector(directionalLight);
+                // Draw direction of directional light. We can illustrate this by a bunch of arrows
+                renderer.drawPoint(p0, false, new Matrix(), "gray");
                 let lightIntensity = 0.006;  // Full intensity
                 let lightColor = new Point(100, 255, 0, 1); // pure white
                 let cubeDiffuseColor = new Point(255, 70, 0, 1); // Red
 
+                const colorNames = [
+                    "blue",
+                    "red",
+                    "green",
+                    "yellow",
+                    "purple",
+                    "pink"
+                ]
                 const drawCube = (cube, modelMatrix) => {
                     cube.getFaces().forEach((indices, i) => {
                         const faceVerts = indices.map((index) => new Point(...verts[index]));
@@ -676,37 +715,25 @@ const main = () => {
                         // We now apply simple shading by taking faceNormal times directional light vector
                         // We use Lamber's cosine law to calculate the color
                         let worldNormal = modelMatrix.multiplyVector(faceNormal).normalize();
+
                         let brightness = lightIntensity * Math.max(directionalLight.dotProduct(worldNormal), 0);
                         const combinedColor = new Point(
-                            lightColor.x * cubeDiffuseColor.x, 
-                            lightColor.y * cubeDiffuseColor.y, 
+                            lightColor.x * cubeDiffuseColor.x,
+                            lightColor.y * cubeDiffuseColor.y,
                             lightColor.z * cubeDiffuseColor.z);
                         // const diffuse = lightColor.multiply(brightness);
                         const diffuse = combinedColor.multiply(brightness); // TODO: account for own color
-                        // console.log(`${faceFinalColor}`);
+                        const faceColor = renderer.shadingControl ? `rgba(${diffuse.x}, ${diffuse.y}, ${diffuse.z}, 1)` : colorNames[i % colorNames.length];
                         renderer.drawPath(
                             faceVerts,
                             modelMatrix,
-                            `rgba(${diffuse.x}, ${diffuse.y}, ${diffuse.z}, 1)`
+                            faceColor
                             // `rgba(${i * 30}, ${i * 30}, ${i * 10}, 1)`
                         );
                     });
                 }
 
                 cubeModelMatrices.forEach((modelMatrix) => drawCube(cube, modelMatrix));
-
-                renderer.drawPoint(
-                    p0,
-                    true,
-                    createTranslationMatrix(new Vector(10, 0, 0)),
-                    "red");
-
-                renderer.drawPath([p0, p1, p2]);
-                // renderer.drawPath([p0, p1, p2], world, "red");
-
-                renderer.drawPath([p0, p1], createRotationMatrixXYZ(x / 3, 0, 0), "green");
-                renderer.drawPath([p0, p1], createRotationMatrixXYZ(0, x / 3, 0), "purple");
-                renderer.drawPath([p0, p1], createRotationMatrixXYZ(0, 0, 10), "yellow");
             }
             updateFrame();
         }
@@ -717,6 +744,14 @@ const main = () => {
 
     // Requests first animation frame
     requestAnimationFrame(tick);
+
+    document.getElementById("cullingControl").addEventListener("change", (event) => {
+        renderer.backfaceCulling = event.currentTarget.checked;
+    });
+
+    document.getElementById("shadingControl").addEventListener("change", (event) => {
+        renderer.shadingControl = event.currentTarget.checked;
+    });
 }
 
 document.addEventListener("DOMContentLoaded", main);
@@ -749,6 +784,7 @@ TODOs:
 1. Basic shading
 2. backface culling by z ordering
 3. clipping
+4. rotate grid properly
 
 regarding shading, what we want to do is:
 1. Associate each pixel with a normal. This is pretty much how deferred shading is done.

@@ -38,6 +38,10 @@ export class Vector {
         return new Vector(-this.x, -this.y, -this.z);
     }
 
+    scale(scalar) {
+        return new Vector(this.x * scalar, this.y * scalar, this.z * scalar);
+    }
+
     sub(vector) {
         return this.add(vector.neg());
     }
