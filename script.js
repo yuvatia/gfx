@@ -4,6 +4,7 @@ import { Point, Vector, Matrix } from "./math.js"
 import { Camera } from "./camera.js";
 import { createTransformationMatrix, createRotationMatrixX, createRotationMatrixY, createRotationMatrixZ, createTranslationMatrix, createScaleMatrix, createaAxisAngleRotationMatrix, CreatePerspectiveProjection, CreateSymmetricOrthographicProjection, invertTranslation } from "./affine.js";
 import { DCELRepresentation } from "./halfmesh.js";
+import { CollisionDetection } from "./collision.js";
 
 class Renderer {
     constructor(canvas) {
