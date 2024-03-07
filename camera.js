@@ -6,7 +6,10 @@ export class Camera {
         this.position = new Vector(0, 0, -1000);
         this.rotation = new Vector(1, 0, 0);
         this.validateViewMatrix();
+        this.installCameraControls();
+    }
 
+    installCameraControls() {
         // Listen for button changes
         document.addEventListener('keydown', (event) => {
             if (event.shiftKey) {

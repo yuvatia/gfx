@@ -3,6 +3,7 @@ import { SignalEmitter } from "./signal_emitter.js";
 import { Point, Vector, Matrix } from "./math.js"
 import { Camera } from "./camera.js";
 import { createTransformationMatrix, createRotationMatrixX, createRotationMatrixY, createRotationMatrixZ, createTranslationMatrix, createScaleMatrix, createaAxisAngleRotationMatrix, CreatePerspectiveProjection, CreateSymmetricOrthographicProjection, invertTranslation } from "./affine.js";
+import { DCELRepresentation } from "./halfmesh.js";
 
 class Renderer {
     constructor(canvas) {
@@ -14,6 +15,11 @@ class Renderer {
         this.projectionMatrix = new Matrix();
         this.orthoProjection = new Matrix();
         this.camera = new Camera();
+
+        // Projection settings
+        this.far = 1000;
+        this.near = 0.01;
+        this.fov = 90;
 
         this.finalRotationMat = new Matrix();
 
@@ -116,16 +122,16 @@ class Renderer {
         this.ctx.translate(this.canvasTranslation.x, this.canvasTranslation.y);
 
         this.projectionMatrix = CreatePerspectiveProjection(
-            90,
+            this.fov,
             this.canvas.width / this.canvas.height,
-            0.01,
-            1000
+            this.near,
+            this.far
         );
         this.orthoProjection = CreateSymmetricOrthographicProjection(
-            90,
+            this.fov,
             this.canvas.width / this.canvas.height,
-            0.1,
-            1000
+            this.near,
+            this.far
         )
     }
 
@@ -293,7 +299,7 @@ class Renderer {
 
     }
 
-    drawStuff() {
+    drawColorGradient() {
         const w = 200;
         const h = 200;
         const imageData = this.ctx.createImageData(w, h);
@@ -392,6 +398,7 @@ const main = () => {
     let p2 = new Point(100, 30, 0);
 
     const cube = new Cube();
+    const cubeDcel = DCELRepresentation.fromSimpleMesh(makeIcosphere(2));
     const grid = makeGrid();
     // const cube = makeIcosphere(3);
     const verts = cube.getVertices();
@@ -473,6 +480,32 @@ const main = () => {
                     "pink"
                 ]
                 const drawCube = (cube, modelMatrix) => {
+                    cubeDcel.faces.forEach((face, i) => {
+                        const faceVerts = face.getVertices();
+                        const faceNormal = face.GetFaceNormal();
+                        // We now apply simple shading by taking faceNormal times directional light vector
+                        // We use Lamber's cosine law to calculate the color
+                        let worldNormal = modelMatrix.multiplyVector(faceNormal).normalize();
+
+                        let brightness = lightIntensity * Math.max(directionalLight.dotProduct(worldNormal), 0);
+                        const combinedColor = new Vector(
+                            lightColor.x * cubeDiffuseColor.x,
+                            lightColor.y * cubeDiffuseColor.y,
+                            lightColor.z * cubeDiffuseColor.z);
+                        // const diffuse = lightColor.multiply(brightness);
+                        const diffuse = combinedColor.scale(brightness); // TODO: account for own color
+                        const faceColor = renderer.shadingControl ? `rgba(${diffuse.x}, ${diffuse.y}, ${diffuse.z}, 1)` : colorNames[i % colorNames.length];
+                        renderer.drawPath(
+                            faceVerts,
+                            modelMatrix,
+                            faceColor,
+                            !document.getElementById("wireframeMode").checked
+                            // `rgba(${i * 30}, ${i * 30}, ${i * 10}, 1)`
+                        );
+                    });
+
+                    return;
+
                     cube.getFaces().forEach((indices, i) => {
                         const faceVerts = indices.map((index) => new Point(...verts[index]));
                         const faceNormal = cube.getFaceNormal(i);
@@ -546,6 +579,8 @@ Regarding:
 
 /*
 TODOs:
+1. translate unity collision detection code to this repo, then add sequential impulse solver to this repo as well.
+TODOs low priority:
 1. grid rotation -- Done with grid mesh
 2. arcball should actually effect camera rotation and accumulate
 3. shadows?

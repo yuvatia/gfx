@@ -26,6 +26,8 @@ export class Vector {
         this.z = z;
     }
 
+    static zero = new Vector(0, 0, 0);
+
     add(vector) {
         return new Vector(
             this.x + vector.x,
@@ -40,6 +42,10 @@ export class Vector {
 
     scale(scalar) {
         return new Vector(this.x * scalar, this.y * scalar, this.z * scalar);
+    }
+
+    divide(scalar) {
+        return this.scale(1 / scalar);
     }
 
     sub(vector) {
@@ -89,6 +95,8 @@ export class Matrix {
     constructor(elements) {
         this.elements = elements || Array.from({ length: 16 }, (_, i) => (i % 5 === 0 ? 1 : 0)); // Identity matrix
     }
+
+    static identity = new Matrix();
 
     multiplyPoint(point) {
         const [x, y, z, w] = point.toArray();
