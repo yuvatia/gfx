@@ -109,7 +109,7 @@ class Renderer {
         // TODO negated due to handedness issue perhaps?
         thetaDegrees = -thetaDegrees;
         let rotationMat = createaAxisAngleRotationMatrix(axis, thetaDegrees);
-        this.finalRotationMat = rotationMat;
+        return rotationMat;
     }
 
     onResize() {
@@ -121,6 +121,19 @@ class Renderer {
         this.canvasTranslation.x = this.canvas.width * 0.5;
         this.canvasTranslation.y = this.canvas.height * 0.5;
         this.ctx.translate(this.canvasTranslation.x, this.canvasTranslation.y);
+
+        const stencilBuffer = document.getElementById("stencil");
+        stencilBuffer.width = window.innerWidth;
+        stencilBuffer.height = window.innerHeight;
+        this.stencilBufferCtx = stencilBuffer.getContext("2d", { willReadFrequently: true });
+        this.stencilBufferCtx.translate(this.canvasTranslation.x, this.canvasTranslation.y);
+
+
+        const depthBuffer = document.getElementById("depth");
+        depthBuffer.width = window.innerWidth;
+        depthBuffer.height = window.innerHeight;
+        this.depthBufferCtx = depthBuffer.getContext("2d");
+        this.depthBufferCtx.translate(this.canvasTranslation.x, this.canvasTranslation.y);
 
         this.projectionMatrix = CreatePerspectiveProjection(
             this.fov,
@@ -136,12 +149,43 @@ class Renderer {
         )
     }
 
+    saveCanvasState() {
+        this.ctx.save();
+        this.stencilBufferCtx.save();
+        this.depthBufferCtx.save();
+    }
+
+    resetCanvasTransform() {
+        this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+        this.stencilBufferCtx.setTransform(1, 0, 0, 1, 0, 0);
+        this.depthBufferCtx.setTransform(1, 0, 0, 1, 0, 0);
+    }
+
+    restoreCanvasState() {
+        this.ctx.restore();
+        this.stencilBufferCtx.restore();
+        this.depthBufferCtx.restore();
+    }
+
+    clearCanvas() {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+        // Stencil: set default value of rgba(0, 0, 255, 1) for all pixels, that way we pick the camera
+        // when not picking an entity
+        this.stencilBufferCtx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.stencilBufferCtx.fillStyle = "rgba(0, 0, 255, 1)";
+        this.stencilBufferCtx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+
+        this.depthBufferCtx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    }
+
     start(dt) {
         // Discard transform, draw grid, framerate and background
-        this.ctx.save();
-        this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+        this.saveCanvasState();
+        this.resetCanvasTransform();
 
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.clearCanvas();
         this.ctx.fillStyle = this.clearColor;
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
@@ -155,7 +199,7 @@ class Renderer {
 
         this.ctx.fillText(`FPS: ${frameRate.toFixed(0)}`, this.canvas.width - 100, 20);
         this.ctx.fillText(`Camera: ${this.camera.position.toString()}`, this.canvas.width - 250, 40);
-        this.ctx.restore();
+        this.restoreCanvasState();
     }
 
     drawXYGrid2D(cellWidth = 10) {
@@ -216,16 +260,20 @@ class Renderer {
         // this.drawText(x, y, transform.toString(), 10, color);
     }
 
-    drawPath(path, transform = new Matrix(), color = "black", fill = true, applyPerspectiveDivision = true, drawPoints = false) {
+
+    drawPath(
+        path,
+        transform = new Matrix(),
+        color = "black",
+        fill = true,
+        applyPerspectiveDivision = true,
+        drawPoints = false,
+        stencilID = "black") {
         if (drawPoints) {
             path.forEach(p => {
                 this.drawPoint(p, false, transform, color);
             });
         }
-
-        this.ctx.beginPath();
-        this.ctx.strokeStyle = color;
-        this.ctx.fillStyle = color;
 
         let screenPath = [];
         path.forEach(p => {
@@ -251,19 +299,54 @@ class Renderer {
             }
         }
 
+        this.ctx.beginPath();
+        this.ctx.strokeStyle = color;
+        this.ctx.fillStyle = color;
+
+        // If shape is the selected shape, do something
+        const selectedID = document.getElementById("controlledEntity").value;
+        if (stencilID === `rgba(${selectedID}, ${selectedID}, ${selectedID}, 1)`) {
+            this.ctx.strokeStyle = "red";
+        } else if (stencilID === "rgba(1, 1, 1, 1)") {
+            // The one we compare against
+            this.ctx.strokeStyle = "blue";
+        }
+
+        this.stencilBufferCtx.beginPath();
+        // Store entity ID in red channel
+        this.stencilBufferCtx.fillStyle = stencilID;
+        this.stencilBufferCtx.strokeStyle = stencilID;
+        this.depthBufferCtx.beginPath();
+        this.depthBufferCtx.fillStyle = "black";
+
         if (screenPath[0] != null) {
-            this.ctx.moveTo(...screenPath[0].toArray());
+            const pos = screenPath[0].toArray();
+            this.ctx.moveTo(...pos);
+            this.stencilBufferCtx.moveTo(...pos);
+            this.depthBufferCtx.moveTo(...pos);
 
         }
         screenPath.forEach(p => {
             if (p === null) return;
             const [x, y, z] = p.toArray();
             this.ctx.lineTo(x, y);
+            this.stencilBufferCtx.lineTo(x, y);
+            this.depthBufferCtx.lineTo(x, y);
         });
         // Fill volume enclosed by path (if any)
-        if (fill) { this.ctx.fill(); }
+        if (fill) {
+            this.ctx.fill();
+            this.stencilBufferCtx.fill();
+            this.depthBufferCtx.fill();
+        }
+
         this.ctx.closePath();
+        this.stencilBufferCtx.closePath();
+        this.depthBufferCtx.closePath();
         this.ctx.stroke();
+        // Don't stroke stencil, just fill
+        this.stencilBufferCtx.stroke();
+        this.depthBufferCtx.stroke();
     }
 
     drawPath2D(path, color = "black", debugDraw = false) {
@@ -324,29 +407,100 @@ class Renderer {
     }
 }
 
+class Transform {
+    constructor(position, rotation, scale) {
+        this.position = position;
+        this.rotation = rotation;
+        this.scale = scale;
+
+        this.validateWorldMatrix();
+    }
+
+    validateWorldMatrix() {
+        this.worldMatrix_ = createTransformationMatrix(this.position, this.rotation, this.scale);
+    }
+
+    toWorldMatrix() {
+        return this.worldMatrix_;
+    }
+
+    adjustPosition(delta) {
+        this.position = this.position.add(delta);
+        this.validateWorldMatrix();
+    }
+
+    adjustRotation(delta) {
+        this.rotation = this.rotation.add(delta);
+        this.validateWorldMatrix();
+    }
+}
+
 
 const main = () => {
     // Used to signal render event
     const signalEmitter = new SignalEmitter();
 
     // Initialize renderer
-    const canvas = document.getElementById("canvas");
+    const canvas = document.getElementById("color");
     const renderer = new Renderer(canvas);
+
+    // Initialize transforms
+    let cubeTransforms = [];
+    for (let i = 0; i < 20; ++i) {
+        let position = new Vector(
+            (2 * Math.random() - 1) * canvas.width,
+            (2 * Math.random() - 1) * canvas.height,
+            30 * (Math.random() * 2 - 1));
+        position.z = 0;
+
+        let rotation = new Vector(
+            360 * Math.random(),
+            360 * Math.random(),
+            360 * Math.random());
+        rotation = Vector.zero;
+        if (i === 1) rotation = Vector.zero;
+        cubeTransforms.push(
+            new Transform(
+                position,
+                rotation,
+                new Vector(100, 100, 100)
+            )
+        )
+    }
+    let cubeModelMatrices = [];
+    for (let t of cubeTransforms) {
+        cubeModelMatrices.push(t.toWorldMatrix());
+    }
+    cubeModelMatrices.push(createScaleMatrix(new Vector(100, 100, 100)));
+
 
     const mouseToCanvas = (mouseEvent) => {
         const rect = canvas.getBoundingClientRect();
         var factorX = canvas.width / rect.width;
         var factorY = canvas.height / rect.height;
-        return new Point(
+        return new Vector(
             factorX * (mouseEvent.clientX - rect.left) - canvas.width / 2,
             factorY * (mouseEvent.clientY - rect.top) - canvas.height / 2,
             0
         );
         // old: offset - width * 0.5
     }
+
+    const pickStencil = (mouseEvent) => {
+        // Mouse picking
+        let [x, y] = mouseToCanvas(mouseEvent).add(renderer.canvasTranslation).toArray();
+        const data = renderer.stencilBufferCtx.getImageData(x, y, 1, 1).data;
+        // map 255 to -1 to camera
+        const selectedEntity = data[2] != 255 ? data[2] : -1;
+        document.getElementById("controlledEntity").value = `${selectedEntity}`;
+    }
     // Capture clicks on canvas
     canvas.addEventListener("click", async (e) => {
         const hitPoint = mouseToCanvas(e);
+        // Mousepicking
+        if (e.ctrlKey) {
+            pickStencil(e);
+        }
         while (1) {
             await signalEmitter.waitForSignal();
             renderer.drawPoint2D(hitPoint, "red", true);
@@ -363,20 +517,29 @@ const main = () => {
 
         const dragStop = mouseToCanvas(e);
 
-
+        let targetID = document.getElementById("controlledEntity").value;
         // If the shift key is also pressed, treat it as translating the camera
         if (e.shiftKey) {
             // TODO handedness -> negation
-            let delta = new Vector(-e.movementX, -e.movementY, 0)
-            renderer.camera.adjustPosition(delta);
-            return;
+            let delta = new Vector(-e.movementX, -e.movementY, 0);
+            let target = targetID == -1 ? renderer.camera : cubeTransforms[targetID];
+            target.adjustPosition(delta);
+            if (target != -1) {
+                cubeModelMatrices[targetID] = target.toWorldMatrix();
+            }
+        } else {
+            // Arcball rotation
+            let extraRotation = renderer.doArcballPrep(dragStart, dragStop);
+            if (targetID == -1) {
+                renderer.finalRotationMat = extraRotation;
+            } else {
+                // TODO: invert/decompose
+                cubeModelMatrices[targetID] = cubeModelMatrices[targetID].multiplyMatrix(extraRotation);
+            }
         }
 
-        // else, do arcball rotation
         await signalEmitter.waitForSignal();
         renderer.drawPath2D([dragStart, dragStop]);
-        renderer.doArcballPrep(dragStart, dragStop);
-
     });
     canvas.addEventListener("mouseup", async (e) => {
         let myStart = dragStart
@@ -399,30 +562,12 @@ const main = () => {
     let p2 = new Point(100, 30, 0);
 
     const cube = new Cube();
-    const cubeDcel = DCELRepresentation.fromSimpleMesh(makeIcosphere(2));
+    // const cubeDcel = DCELRepresentation.fromSimpleMesh(makeIcosphere(1));
+    const cubeDcel = DCELRepresentation.fromSimpleMesh(cube);
     const grid = makeGrid();
     // const cube = makeIcosphere(3);
     const verts = cube.getVertices();
 
-    // Generate n model matrices with different positions and rotations
-    let cubeModelMatrices = []
-    for (let i = 0; i < 20; ++i) {
-        cubeModelMatrices.push(
-            createTransformationMatrix(
-                new Vector(
-                    (2 * Math.random() - 1) * canvas.width,
-                    (2 * Math.random() - 1) * canvas.height,
-                    30 * (Math.random() * 2 - 1)),
-                new Vector(
-                    360 * Math.random(),
-                    360 * Math.random(),
-                    360 * Math.random()),
-                new Vector(100, 100, 100)
-            )
-        )
-    }
-    cubeModelMatrices.push(createScaleMatrix(new Vector(100, 100, 100)));
-    // cubeModelMatrices = [];
     // cubeModelMatrices = [cubeModelMatrices.pop()];
 
     const tick = (timestamp) => {
@@ -437,7 +582,7 @@ const main = () => {
                     const faceVerts = indices.map((index) => new Point(...grid.getVertices()[index]));
                     renderer.drawPath(
                         faceVerts,
-                        createScaleMatrix(new Vector(20, 20, 0)),
+                        createScaleMatrix(new Vector(60, 60, 0)),
                         "gray",
                         false,
                         true,
@@ -480,7 +625,7 @@ const main = () => {
                     "purple",
                     "pink"
                 ]
-                const drawCube = (cube, modelMatrix) => {
+                const drawCube = (cube, modelMatrix, entityId) => {
                     cubeDcel.faces.forEach((face, i) => {
                         const faceVerts = face.getVertices();
                         const faceNormal = face.GetFaceNormal();
@@ -500,13 +645,17 @@ const main = () => {
                             faceVerts,
                             modelMatrix,
                             faceColor,
-                            !document.getElementById("wireframeMode").checked
+                            !document.getElementById("wireframeMode").checked,
+                            true,
+                            false,
+                            `rgba(${entityId}, ${entityId}, ${entityId}, 1)`
                             // `rgba(${i * 30}, ${i * 30}, ${i * 10}, 1)`
                         );
                     });
 
                     return;
 
+                    // SimpleMesh rendering
                     cube.getFaces().forEach((indices, i) => {
                         const faceVerts = indices.map((index) => new Point(...verts[index]));
                         const faceNormal = cube.getFaceNormal(i);
@@ -532,7 +681,17 @@ const main = () => {
                     });
                 }
 
-                cubeModelMatrices.forEach((modelMatrix) => drawCube(cube, modelMatrix));
+                cubeModelMatrices.forEach((modelMatrix, index) => drawCube(cube, modelMatrix, index));
+
+                // Run collision detection between selected and another entity
+                const selectedID = Number(document.getElementById("controlledEntity").value);
+                if (selectedID == -1) return;
+                const s1HalfMesh = cubeDcel;
+                const s1Matrix = cubeModelMatrices[selectedID];
+                const s2HalfMesh = cubeDcel;
+                const s2Matrix = cubeModelMatrices[1];
+                const { result: separating, info } = CollisionDetection.SATEx(s1HalfMesh, s2HalfMesh, s1Matrix, s2Matrix);
+                renderer.drawText(10, 10, `Separating: ${separating}`, 10, "black", "bold 15px Arial");
             }
             updateFrame();
         }
@@ -551,6 +710,49 @@ const main = () => {
     document.getElementById("shadingControl").addEventListener("change", (event) => {
         renderer.shadingControl = event.currentTarget.checked;
     });
+
+    let entityListElement = document.getElementById("controlledEntity");
+    const populateEntityList = (element) => {
+        // Add options with values from 0 to 20, and then -1
+        for (let i = -1; i < 20; ++i) {
+            let option = document.createElement("option");
+            option.value = i;
+            option.text = i;
+            element.appendChild(option);
+        }
+        // Set default value to -1
+        element.value = -1;
+    }
+    populateEntityList(entityListElement);
+
+    let bufferSelectionElement = document.getElementById("bufferSelection");
+    const populateBufferSelection = (element) => {
+        let option = document.createElement("option");
+        option.value = "color";
+        option.text = "Color";
+        element.appendChild(option);
+
+        option = document.createElement("option");
+        option.value = "depth";
+        option.text = "Depth";
+        element.appendChild(option);
+
+        option = document.createElement("option");
+        option.value = "stencil";
+        option.text = "Stencil";
+        element.appendChild(option);
+
+        element.addEventListener("change", (event) => {
+            let buffer = document.getElementById(event.currentTarget.value);
+            let otherBuffers = Array.from(document.getElementsByTagName("canvas"));
+            console.log(otherBuffers);
+            otherBuffers.forEach((buffer) => {
+                buffer.style.display = "none";
+            });
+            buffer.style.display = "block";
+        });
+    }
+    populateBufferSelection(bufferSelectionElement);
 }
 
 document.addEventListener("DOMContentLoaded", main);
@@ -580,6 +782,8 @@ Regarding:
 
 /*
 TODOs:
+Sadly pretty much all those things require some refactoring so might as well just get on with it
+0. mouse picking!! We can either do it by raycasting or by mousepick buffer
 1. translate unity collision detection code to this repo, then add sequential impulse solver to this repo as well.
 TODOs low priority:
 1. grid rotation -- Done with grid mesh
@@ -590,4 +794,17 @@ TODOs low priority:
 Regarding shadows:
 Shadows are essentially just the projection of the nearest object
 unto the further object.
+*/
+
+/*
+We're working towards the following goal:
+A decent visualization of SAT for collision detection then clipping
+for contact generation.
+
+To achieve this goal:
+1. Mousepicking
+    -- would require raycasting + acceleration struct, or
+    -- stencil buffer testing <-- went this route for now but will implement more stuff later
+2. Selecting entity to move, then all controls will target effected entity
+3. Make sure all ported unity code works
 */

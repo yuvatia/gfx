@@ -17,6 +17,10 @@ export class Point {
     multiply(scalar) {
         return new Point(this.x * scalar, this.y * scalar, this.z * scalar, this.w * scalar);
     }
+
+    toVector() {
+        return new Vector(this.x, this.y, this.z);
+    }
 }
 
 export class Vector {
@@ -27,6 +31,10 @@ export class Vector {
     }
 
     static zero = new Vector(0, 0, 0);
+
+    toPoint() {
+        return new Point(this.x, this.y, this.z);
+    }
 
     add(vector) {
         return new Vector(
@@ -70,6 +78,8 @@ export class Vector {
 
     normalize() {
         let mag = this.magnitude();
+        // Avoid zero division
+        if (mag === 0) { return new Vector(0, 0, 0);  };
         return new Vector(
             this.x / mag,
             this.y / mag,

@@ -20,9 +20,18 @@
             <label for="shadingControl">Shading</label>
             <input type="checkbox" id="wireframeMode">
             <label for="wireframeMode">Wireframe</label>
+            <select id="controlledEntity">
+            </select>
+            <label for="controlledEntity">Controlled entity</label>
+            <select id="bufferSelection">
+            </select>
+            <label for="bufferSelection">Buffer</label>
+
         </p>
         <div id="canvas-container">
-            <canvas id="canvas"></canvas>
+            <canvas id="color"></canvas>
+            <canvas id="depth" hidden></canvas>
+            <canvas id="stencil" hidden></canvas>
         </div>
         <script type="module" src="script.js"></script>
     </main>

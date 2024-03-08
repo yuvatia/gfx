@@ -179,12 +179,26 @@ class DCELRepresentation {
         return transform.multiplyPoint(new Point(...support.toArray()));
     }
 
-    projectOnAxis(axis, transform = null) {
+    projectOnAxis(axis, transform = Matrix.identity) {
+        // TODO: the better idea would be to transform
+        // the axis to local space
+
+        // We iterate over all the vertices and find the minimum.
+        // Alternatively, we could just use the symmetry of the
+        // shape and only project the center then add extent.
+        // This is the general case so we won't make any assumptions.
+
+        // Assuming extent
+        // float extent = 1;
+        // var projection = Vector3.Dot(effectiveTransform.MultiplyPoint(centroid), axis);
+        // return new Interval() { min = projection - extent, max = projection + extent };
+
         let minProjection = Infinity;
         let maxProjection = -Infinity;
 
         this.vertices.forEach(vertex => {
-            const projection = vertex.position.dotProduct(axis);
+            const effectivePosition = transform.multiplyPoint(vertex.position.toPoint()).toVector();
+            const projection = effectivePosition.dotProduct(axis);
             minProjection = Math.min(minProjection, projection);
             maxProjection = Math.max(maxProjection, projection);
         });

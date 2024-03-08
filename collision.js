@@ -82,12 +82,14 @@ export class Plane {
 
 export class CollisionDetection {
     static DoOverlapOnAxis(axis, s1, s2, t1 = Matrix.identity, t2 = Matrix.identity) {
+        axis = axis.normalize();
         let i1 = s1.projectOnAxis(axis, t1);
         let i2 = s2.projectOnAxis(axis, t2);
         return Interval.areOverlapping(i1, i2);
     }
 
     static GetOverlapOnAxis(axis, s1, s2, t1 = Matrix.identity, t2 = Matrix.identity) {
+        axis = axis.normalize();
         let i1 = s1.projectOnAxis(axis, t1);
         let i2 = s2.projectOnAxis(axis, t2);
         return Interval.getOverlap(i1, i2);
@@ -106,17 +108,14 @@ export class CollisionDetection {
     }
 
     static BooleanSAT(s1, s2, t1 = Matrix.identity, t2 = Matrix.identity) {
-        let effectiveT1 = t1;
-        let effectiveT2 = t2;
-
         for (let face of s1.faces) {
-            let axis = effectiveT1.multiplyVector(face.GetFaceNormal(s1.centroid));
+            let axis = t1.multiplyVector(face.GetFaceNormal(s1.centroid));
             if (!this.DoOverlapOnAxis(axis, s1, s2, t1, t2)) {
                 return true;
             }
         }
         for (let face of s2.faces) {
-            let axis = effectiveT2.multiplyVector(face.GetFaceNormal(s2.centroid));
+            let axis = t2.multiplyVector(face.GetFaceNormal(s2.centroid));
             if (!this.DoOverlapOnAxis(axis, s1, s2, t1, t2)) {
                 return true;
             }
@@ -132,13 +131,13 @@ export class CollisionDetection {
         return false;
     }
 
-    static QueryFaceDirection(s1, s2, effectiveT1, effectiveT2) {
+    static QueryFaceDirection(s1, s2, t1, t2) {
         let info = new CollisionInfo();
         for (let face of s1.faces) {
-            let axis = effectiveT1.multiplyVector(face.GetFaceNormal(s1.centroid));
-            let overlap = this.GetOverlapOnAxis(axis, s1, s2, effectiveT1, effectiveT2);
-            let plane = Plane.FromNormalAndPoint(axis, effectiveT1.multiplyPoint(face.edge.origin.position));
-            let supportS2 = s2.getSupport(axis.neg(), effectiveT2);
+            let axis = t1.multiplyVector(face.GetFaceNormal(s1.centroid));
+            let overlap = this.GetOverlapOnAxis(axis, s1, s2, t1, t2);
+            let plane = Plane.FromNormalAndPoint(axis, t1.multiplyPoint(face.edge.origin.position));
+            let supportS2 = s2.getSupport(axis.neg(), t2);
             let distance = plane.GetPointDistance(supportS2);
             if (overlap == null) {
                 return { result: true, info: null };
@@ -158,16 +157,14 @@ export class CollisionDetection {
 
     static SATEx(s1, s2, t1 = Matrix.identity, t2 = Matrix.identity) {
         let info = new CollisionInfo();
-        let effectiveT1 = t1;
-        let effectiveT2 = t2;
 
-        let { result: hull1FaceResult, info: hull1FaceInfo } = this.QueryFaceDirection(s1, s2, effectiveT1, effectiveT2);
+        let { result: hull1FaceResult, info: hull1FaceInfo } = this.QueryFaceDirection(s1, s2, t1, t2);
         if (hull1FaceResult) return { result: true, info: null };
         if (hull1FaceInfo.depth < info.depth) {
             info = hull1FaceInfo;
             info.incidentHull = 1;
         }
-        let { result: hull2FaceResult, info: hull2FaceInfo } = this.QueryFaceDirection(s2, s1, effectiveT2, effectiveT1);
+        let { result: hull2FaceResult, info: hull2FaceInfo } = this.QueryFaceDirection(s2, s1, t2, t1);
         if (hull2FaceResult) return { result: true, info: null };
         if (hull2FaceInfo.depth < info.depth) {
             info = hull2FaceInfo;
