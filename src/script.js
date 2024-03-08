@@ -5,6 +5,7 @@ import { Camera } from "./camera.js";
 import { createTransformationMatrix, createRotationMatrixX, createRotationMatrixY, createRotationMatrixZ, createTranslationMatrix, createScaleMatrix, createaAxisAngleRotationMatrix, CreatePerspectiveProjection, CreateSymmetricOrthographicProjection, invertTranslation } from "./affine.js";
 import { DCELRepresentation } from "./halfmesh.js";
 import { CollisionDetection } from "./collision.js";
+import { createContacts } from "./sat_contact_creation.js";
 
 class Renderer {
     constructor(canvas) {
@@ -562,8 +563,8 @@ const main = () => {
     let p2 = new Point(100, 30, 0);
 
     const cube = new Cube();
-    // const cubeDcel = DCELRepresentation.fromSimpleMesh(makeIcosphere(1));
-    const cubeDcel = DCELRepresentation.fromSimpleMesh(cube);
+    const cubeDcel = DCELRepresentation.fromSimpleMesh(makeIcosphere(0));
+    // const cubeDcel = DCELRepresentation.fromSimpleMesh(cube);
     const grid = makeGrid();
     // const cube = makeIcosphere(3);
     const verts = cube.getVertices();
@@ -692,6 +693,20 @@ const main = () => {
                 const s2Matrix = cubeModelMatrices[1];
                 const { result: separating, info } = CollisionDetection.SATEx(s1HalfMesh, s2HalfMesh, s1Matrix, s2Matrix);
                 renderer.drawText(10, 10, `Separating: ${separating}`, 10, "black", "bold 15px Arial");
+                if(!separating) {
+                    const contacts = createContacts(s1HalfMesh, s2HalfMesh, s1Matrix, s2Matrix, info);
+                    if(contacts.length == 0) return;
+                    console.log(contacts);
+                    // Now we draw the contacts
+                    contacts.forEach(contact => {
+                        renderer.drawPoint(
+                            contact,
+                            false,
+                            Matrix.identity,
+                            "purple"
+                        )
+                    });
+                }
             }
             updateFrame();
         }

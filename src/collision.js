@@ -20,8 +20,9 @@ export class Plane {
         // Calculate plane from normal and point
         // N*x + D = 0;
         // So D = -N*P
-        let pointV = new Vector(...point.toArray());
-        return new Plane(normal.normalize(), normal.neg().dotProduct(pointV));
+        return new Plane(
+            normal.normalize(), 
+            normal.neg().dotProduct(point.toVector()));
     }
 
     static FromPoints(a, b, c) {
@@ -30,12 +31,12 @@ export class Plane {
     }
 
     GetSide(point) {
-        const distance = GetPointDistance(point);
+        const distance = this.GetPointDistance(point);
         // if (distance > 0.001f) return Side.Front;
         // if (distance < -0.001f) return Side.Back;
-        if (distance > 0.001) return Side.Back;
-        if (distance < -0.001) return Side.Front;
-        return Side.On;
+        if (distance > 0.001) return Plane.Side.Back;
+        if (distance < -0.001) return Plane.Side.Front;
+        return Plane.Side.On;
     }
 
     GetPointDistance(point) {
@@ -61,8 +62,12 @@ export class Plane {
         // We need to make sure t is clamped between 0 and 1
         // then subsitute t in first equation to get the point
 
-        var nA = this.normal.dot(start);
-        var nBA = this.normal.dot(start.sub(end));
+        // TODO performance
+        // ensure start and end are arrays
+        start = new Vector(...start.toArray());
+        end = new Vector(...end.toArray());
+        var nA = this.normal.dotProduct(start);
+        var nBA = this.normal.dotProduct(start.sub(end));
         // Consider degenerate case where the line
         // is on the plane, then there is no intersection
         if (nBA == 0) {
@@ -73,7 +78,7 @@ export class Plane {
         if (t < 0 || t > 1) {
             return null;
         }
-        const position = start + end.sub(start).scale(t);
+        const position = start.add(end.sub(start).scale(t));
         return position;
     }
 
@@ -134,9 +139,10 @@ export class CollisionDetection {
     static QueryFaceDirection(s1, s2, t1, t2) {
         let info = new CollisionInfo();
         for (let face of s1.faces) {
-            let axis = t1.multiplyVector(face.GetFaceNormal(s1.centroid));
+            let axis = t1.multiplyVector(face.GetFaceNormal(s1.centroid)).normalize();
             let overlap = this.GetOverlapOnAxis(axis, s1, s2, t1, t2);
             let plane = Plane.FromNormalAndPoint(axis, t1.multiplyPoint(face.edge.origin.position));
+            
             let supportS2 = s2.getSupport(axis.neg(), t2);
             let distance = plane.GetPointDistance(supportS2);
             if (overlap == null) {
@@ -173,7 +179,7 @@ export class CollisionDetection {
 
         for (let edge1 of s1.halfEdges) {
             for (let edge2 of s2.halfEdges) {
-                let axis = this.GetEdgeAxis(edge1, edge2, s1.centroid, t1, t2);
+                let axis = this.GetEdgeAxis(edge1, edge2, s1.centroid, t1, t2).normalize();
                 let overlap = this.GetOverlapOnAxis(axis, s1, s2, t1, t2);
                 if (overlap == null) {
                     return { result: true, info: null };

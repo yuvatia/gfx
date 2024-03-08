@@ -1,5 +1,5 @@
 import { Vector, Matrix, Point } from './math.js';
-
+import { Plane } from './collision.js';
 class Interval {
     constructor(min, max) {
         this.min = min;
@@ -69,16 +69,19 @@ class HalfEdge {
     }
 
     static getClosestPoints(a, aToWorld, b, bToWorld) {
-        const p1 = aToWorld.multiplyPoint(a.origin.position);
-        const p2 = bToWorld.multiplyPoint(b.origin.position);
+        // Equations to find closest points sourced from math exchange post: 
+        // https://math.stackexchange.com/questions/1414285/location-of-shortest-distance-between-two-skew-lines-in-3d
+
+        const p1 = aToWorld.multiplyPoint(a.origin.position).toVector();
+        const p2 = bToWorld.multiplyPoint(b.origin.position).toVector();
         const d1 = aToWorld.multiplyVector(a.getDirection());
         const d2 = bToWorld.multiplyVector(b.getDirection());
         const n = d1.crossProduct(d2);
         const n1 = d1.crossProduct(n);
         const n2 = d2.crossProduct(n);
 
-        const closestA = p1.add(p2.sub(p1).dotProduct(n2) / d1.dotProduct(n2)).multiply(d1);
-        const closestB = p2.add(p1.sub(p2).dotProduct(n1) / d2.dotProduct(n1)).multiply(d2);
+        const closestA = p1.add(d1.scale(p2.sub(p1).dotProduct(n2) / d1.dotProduct(n2)));
+        const closestB = p2.add(d2.scale(p1.sub(p2).dotProduct(n1) / d2.dotProduct(n1)));
 
         return [closestA, closestB];
     }
@@ -94,14 +97,77 @@ class Face {
         let start = this.edge;
         let current = this.edge;
         do {
-            const pos = transform.multiplyPoint(
-                new Point(...current.origin.position.toArray())
-            );
+            const pos = transform.multiplyPoint(current.origin.position.toPoint());
             vertices.push(pos);
             current = current.next;
         } while (current !== start);
         return vertices;
     }
+
+    /*
+    Face clipping start
+    */
+
+    clipSelfAgainstFace(clippingFace, ClippingTransform, clippingCentroid, SubjectTransform) {
+        return Face.clipAgainstFace(self.getVertices(SubjectTransform), clippingFace, ClippingTransform, clippingCentroid);
+    }
+
+    static clipAgainstFace(subject, clippingFace, ClippingTransform, clippingCentroid) {
+        let output = subject.slice();
+        var normal = ClippingTransform.multiplyVector(clippingFace.GetFaceNormal(clippingCentroid));
+        var point = ClippingTransform.multiplyPoint(clippingFace.edge.origin.position);
+        var plane = Plane.FromNormalAndPoint(normal.normalize(), point);
+        output = Face.clipAgainstPlane(output, plane);
+        return output;
+    }
+
+    static clipAgainstPlane(vertices, plane) {
+        let clipped = [];
+        for (let i = 0; i < vertices.length; i++) {
+            // We iterate over all edges defined by the input vertices
+            // for each edge, we wish to clip it against the plane
+            const current = vertices[i];
+            const previous = vertices[(i + vertices.length - 1) % vertices.length];
+            //
+            const currentSide = plane.GetSide(current);
+            const previousSide = plane.GetSide(previous);
+
+            // Case 0: current point is on the plane, add it
+            if (currentSide == Plane.Side.On) {
+                clipped.push(current);
+            }
+            // Case 1: both points are weakly in front meaning previous is not in back, take latter (current)
+            else if (currentSide == Plane.Side.Front && previousSide != Plane.Side.Back) {
+                clipped.push(current);
+            }
+            // Case 2: current is in front, latter on the back, add current and intersection (guaranteed to exist)
+            else if (currentSide == Plane.Side.Front && previousSide == Plane.Side.Back) {
+                var intersection = plane.Clip(previous, current);
+                // Log if intersection is null
+                if (!intersection) {
+                    console.error("Intersection is null");
+                }
+                clipped.push(intersection);
+                clipped.push(current);
+            }
+            // Case 3: current is in the back, latter in front, add intersection only
+            else if (currentSide == Plane.Side.Back && previousSide == Plane.Side.Front) {
+                // Find intersection between line going from previous to current and plane
+                var intersection = plane.Clip(previous, current);
+                // Log if intersection is null
+                if (!intersection) {
+                    console.error("Intersection is null");
+                }
+                clipped.push(intersection);
+            }
+        }
+        return clipped;
+    }
+
+
+    /*
+    Face clipping
+    */
 
     onDrawGizmos(transform) {
         // TODO: Implement onDrawGizmos functionality

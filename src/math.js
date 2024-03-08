@@ -109,7 +109,9 @@ export class Matrix {
     static identity = new Matrix();
 
     multiplyPoint(point) {
-        const [x, y, z, w] = point.toArray();
+        // TODO performance!!
+        // ensure it really is a point then convert to array
+        const [x, y, z, w] = new Point(...point.toArray()).toArray();
         // const w = 1;
         const e = this.elements;
         const newX = e[0] * x + e[1] * y + e[2] * z + e[3] * w;
