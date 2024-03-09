@@ -108,10 +108,10 @@ export class CollisionDetection {
         // of the remaining points. w.l.t we check:
         // B, D lie on the same side of the plane given by AxC
         // This function does just that, but also simplifies the algebera to avoid calculations.
-        const a = t1.multiplyPoint(h1.face.getFaceNormal());
-        const b = t1.multiplyPoint(h1.twin.face.getFaceNormal());
-        const c = t2.multiplyPoint(h2.face.getFaceNormal().neg());
-        const d = t2.multiplyPoint(h2.twin.face.getFaceNormal().neg());
+        const a = t1.multiplyPoint(h1.face.GetFaceNormal()).toVector();
+        const b = t1.multiplyPoint(h1.twin.face.GetFaceNormal()).toVector();
+        const c = t2.multiplyPoint(h2.face.GetFaceNormal().neg()).toVector();
+        const d = t2.multiplyPoint(h2.twin.face.GetFaceNormal().neg()).toVector();
 
         const bXa = b.crossProduct(a);
         const dXc = d.crossProduct(c);
@@ -236,6 +236,10 @@ export class CollisionDetection {
             for (let edge2 of s2.halfEdges) {
                 let axis = this.GetEdgeAxis(edge1, edge2, s1.centroid, t1, t2).normalize();
                 let overlap = this.GetOverlapOnAxis(axis, s1, s2, t1, t2);
+                if (!this.isMinkowskiFace(edge1, edge2, t1, t2)) {
+                    // Irrelevant, continue searching
+                    continue;
+                }
                 if (overlap == null) {
                     return { result: true, info: null };
                 }
