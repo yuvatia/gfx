@@ -16,9 +16,11 @@
         <p>
             <input type="checkbox" id="cullingControl" checked>
             <label for="cullingControl">Backface culling</label>
+            <input type="checkbox" id="perspectiveClipEnabled" checked>
+            <label for="perspectiveClipEnabled">Perspective clip</label>
             <input type="checkbox" id="shadingControl" checked>
             <label for="shadingControl">Shading</label>
-            <input type="checkbox" id="wireframeMode">
+            <input type="checkbox" id="wireframeMode" checked>
             <label for="wireframeMode">Wireframe</label>
             <select id="controlledEntity">
             </select>
@@ -26,7 +28,12 @@
             <select id="bufferSelection">
             </select>
             <label for="bufferSelection">Buffer</label>
-
+            <input type="range" id="entitiesCount" min="2" max="100" value="2" oninput="entitiesCountValue.value = entitiesCount.value">
+            <label for="entitiesCount">Entities count</label>
+            <output id="entitiesCountValue">2</output>
+            <input type="number" id="clipStepsCount" min="0" max="100" value="0" oninput="clipStepsCountValue.value = clipStepsCount.value">
+            <label for="clipStepsCount">Slip Steps Count</label>
+            <output id="clipStepsCountValue">0</output>
         </p>
         <div id="canvas-container">
             <canvas id="color"></canvas>

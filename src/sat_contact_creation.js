@@ -1,22 +1,50 @@
 import { Face, HalfEdge } from "./halfmesh.js";
+import { Matrix } from "./math.js";
 
-export function createContacts(s1, s2, s1World, s2World, info) {
-    // // Draw axis normal from s1
-    // // Draw face normal
-    // Gizmos.color = Color.yellow;
-    // Gizmos.DrawLine(
-    //     transform.TransformPoint(s1.centroid),
-    //     transform.TransformPoint(s1.centroid.add(info.normal.Value.multiply(10)))
-    // );
+const debugDrawEdge = (debugRenderer, edge, transform, color) => {
+    if (!debugRenderer) return;
+    debugRenderer.drawPath(
+        edge.getVertices(),
+        transform,
+        color);
+}
+
+const drawAllVertices = (debugRenderer, vertices, color) => {
+    if (!debugRenderer) return;
+    vertices.forEach(vert => debugRenderer.drawPoint(vert, false, Matrix.identity, color));
+}
+
+const drawFace = (debugRenderer, face, color, transform = Matrix.identity) => {
+    if (!debugRenderer) return;
+    // Disable backface culling
+    debugRenderer.backfaceCulling = false;
+    debugRenderer.drawPath(
+        face.getVertices(),
+        transform,
+        color,
+        false);
+    // Enable backface culling
+    debugRenderer.backfaceCulling = true;
+}
+
+export function createContacts(s1, s2, s1World, s2World, info, debugRenderer = null, clipStepsCount = 0) {
+    // Draw axis normal from s1
+    // Draw face normal
+    debugRenderer.drawPath(
+        [s1World.multiplyPoint(s1.centroid),
+        s1World.multiplyPoint(s1.centroid.add(info.normal.scale(10)))],
+        Matrix.identity,
+        "yellow");
 
     if (!info.faceContact) {
         // Generate edge contact
         let witnessEdge1Transform = s1World;
         let witnessEdge2Transform = s2World;
-        // info.witnessEdge1.OnDrawGizmos(s1.transform, Color.yellow);
-        // info.witnessEdge2.OnDrawGizmos(s2.transform, Color.yellow);
+
+        debugDrawEdge(debugRenderer, info.witnessEdge1, witnessEdge1Transform, "yellow");
+        debugDrawEdge(debugRenderer, info.witnessEdge2, witnessEdge2Transform, "green");
         let closestPoints = HalfEdge.getClosestPoints(info.witnessEdge1, witnessEdge1Transform, info.witnessEdge2, witnessEdge2Transform);
-        // DrawAllVertices(closestPoints, Color.red, "Closest Points");
+        drawAllVertices(debugRenderer, closestPoints, "red");
         return closestPoints;
     }
 
@@ -29,6 +57,7 @@ export function createContacts(s1, s2, s1World, s2World, info) {
 
     let referenceHull = s1; // from s1
     let referenceTransform = info.incidentHull === 1 ? s2World : s1World;
+
     // Find most anti-parallel face
     let dotMin = Number.MAX_VALUE;
     let incidentNormal = incidentTransform.multiplyVector(incidentFace.GetFaceNormal(incidentHull.centroid));
@@ -44,23 +73,34 @@ export function createContacts(s1, s2, s1World, s2World, info) {
     let referenceFace = info.referenceFace;
 
     let result = referenceFace.getVertices(referenceTransform);
-    // DrawAllVertices(incidentFace.getVertices(incidentTransform), Color.red, "Incident");
-    // DrawAllVertices(result, Color.green, "Reference");
-    // if (clipStepsCounts === 0) return;
-    const clipStepsCounts = 50; // TODO remove
+    // Incident Face
+    drawFace(
+        debugRenderer,
+        incidentFace,
+        "red",
+        incidentTransform);
+    // Reference Face
+    drawFace(
+        debugRenderer,
+        referenceFace,
+        "green",
+        referenceTransform);
+
+    if (clipStepsCount === 0) return;
+
     let firstIncidentEdge = incidentFace.edge;
     let currentIncidentEdge = firstIncidentEdge;
     let stepsPerformed = 0;
     do {
         let clippingFace = currentIncidentEdge.twin.face;
         // Draw clipping plane
-        // DrawAllVertices(clippingFace.GetVertices(incidentTransform), Color.blue, "Clip");
+        drawFace(debugRenderer, clippingFace, "blue", incidentTransform);
         // Draw last state
-        // DrawAllVertices(result, Color.green, "Reference");
-        // Draw next state
+        drawAllVertices(debugRenderer, result, "green");
+        // Advance to next state
         result = Face.clipAgainstFace(result, clippingFace, incidentTransform, s1.centroid);
         currentIncidentEdge = currentIncidentEdge.next;
-    } while (currentIncidentEdge !== firstIncidentEdge && clipStepsCounts > ++stepsPerformed);
+    } while (currentIncidentEdge !== firstIncidentEdge && clipStepsCount > ++stepsPerformed);
     // result = referenceFace.ClipSelfAgainstFace(incidentFace/*subject*/, s2World/*subject*/, s1World /*incident*/);
     // DrawAllVertices(result, Color.yellow);
     return result;

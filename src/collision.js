@@ -21,7 +21,7 @@ export class Plane {
         // N*x + D = 0;
         // So D = -N*P
         return new Plane(
-            normal.normalize(), 
+            normal.normalize(),
             normal.neg().dotProduct(point.toVector()));
     }
 
@@ -86,6 +86,46 @@ export class Plane {
 
 
 export class CollisionDetection {
+    static isMinkowskiFace(h1, h2, t1, t2) {
+        // Given two halfedges, we ask if they construct
+        // a Minkowski face. Due to the duality of Minowski
+        // Sum and Gauss map overlays, we conclude that
+        // two edges build a Minkowski face iff their
+        // respective arcs on the unit sphere intersect.
+        // An intersection between two lines occurs iff
+        // the vertices of one lines lay on different sides of
+        // the other line. We can use the plane equation to
+        // determine the side of the point. Consider:
+        // A, B - normals of halfedge 1 (normals are vertices in gauss map)
+        // C, D - halfedge 2 (since we actually care for minkowski diff, we will use -C, -D)
+        // AB and CD intersect iff:
+        //   1. A, B lie on different sides of the plane given by DxC (cross)
+        //   2. C, D lie on different sides of AxB
+        // Since we deal with great arcs and not straight lines, 
+        // we also need to make sure that the arcs are on the same hemisphere.
+        // We verify this by making sure that, given a point from line 1 and a point from line 2,
+        // both points are on the same side of the plane given by the cross product
+        // of the remaining points. w.l.t we check:
+        // B, D lie on the same side of the plane given by AxC
+        // This function does just that, but also simplifies the algebera to avoid calculations.
+        const a = t1.multiplyPoint(h1.face.getFaceNormal());
+        const b = t1.multiplyPoint(h1.twin.face.getFaceNormal());
+        const c = t2.multiplyPoint(h2.face.getFaceNormal().neg());
+        const d = t2.multiplyPoint(h2.twin.face.getFaceNormal().neg());
+
+        const bXa = b.crossProduct(a);
+        const dXc = d.crossProduct(c);
+
+        const cDotBA = c.dotProduct(bXa);
+        const dDotBA = d.dotProduct(bXa);
+        const aDotDC = a.dotProduct(dXc);
+        const bDotDC = b.dotProduct(dXc);
+
+        const areOnDifferentSides = cDotBA * dDotBA < 0 && aDotDC * bDotDC < 0;
+        const isSameHemisphere = cDotBA * bDotDC > 0;
+        return areOnDifferentSides && isSameHemisphere;
+
+    }
     static DoOverlapOnAxis(axis, s1, s2, t1 = Matrix.identity, t2 = Matrix.identity) {
         axis = axis.normalize();
         let i1 = s1.projectOnAxis(axis, t1);
@@ -128,6 +168,10 @@ export class CollisionDetection {
         for (let edge1 of s1.halfEdges) {
             for (let edge2 of s2.halfEdges) {
                 let axis = this.GetEdgeAxis(edge1, edge2, s1.centroid, t1, t2);
+                if (!this.isMinkowskiFace(edge1, edge2, t1, t2)) {
+                    // Irrelevant, continue searching
+                    continue;
+                }
                 if (!this.DoOverlapOnAxis(axis, s1, s2, t1, t2)) {
                     return true;
                 }
@@ -141,18 +185,29 @@ export class CollisionDetection {
         for (let face of s1.faces) {
             let axis = t1.multiplyVector(face.GetFaceNormal(s1.centroid)).normalize();
             let overlap = this.GetOverlapOnAxis(axis, s1, s2, t1, t2);
-            let plane = Plane.FromNormalAndPoint(axis, t1.multiplyPoint(face.edge.origin.position));
-            
+            let plane = Plane.FromNormalAndPoint(
+                axis,
+                t1.multiplyPoint(face.edge.origin.position)
+            );
+
             let supportS2 = s2.getSupport(axis.neg(), t2);
             let distance = plane.GetPointDistance(supportS2);
             if (overlap == null) {
                 return { result: true, info: null };
+            }
+            if (distance > info.distance) {
+                info.distance = distance;
+                info.depth = -distance;
+                info.normal = axis;
+                info.incidentFace = face;
+                continue;
             }
             if (distance >= 0.0) {
                 continue;
             }
             let length = overlap.length();
             if (length < info.depth) {
+                info.distance = distance;
                 info.depth = length;
                 info.normal = axis;
                 info.incidentFace = face;
@@ -208,6 +263,7 @@ export class CollisionDetection {
 export class CollisionInfo {
     constructor() {
         this.normal = null;
+        this.distance = -Infinity;
         this.depth = Number.MAX_VALUE;
         this.incidentFace = null;
         this.incidentHull = 0;

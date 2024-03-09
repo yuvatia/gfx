@@ -73,12 +73,14 @@ class Renderer {
         // Apply clipping against all 6 planes
         var clipSpace3 = [clipSpace.x, clipSpace.y, clipSpace.z];
         var w = clipSpace.w;
-        for (var i = 0; i < clipSpace3.length; ++i) {
-            // if -w <= x, y, z <= w
-            // then inside
-            let current = clipSpace3[i];
-            if (!(-w <= current && current <= w)) {
-                //return null;
+        if (document.getElementById("perspectiveClipEnabled").checked) {
+            // if -w <= x, y, z <= w and w > 0, then inside viewing volume
+            if (w > 0) return null;
+            for (var i = 0; i < clipSpace3.length; ++i) {
+                const isInside = -w <= clipSpace3[i] && clipSpace3[i] <= w;
+                if (isInside) {
+                    return null;
+                }
             }
         }
 
@@ -282,6 +284,11 @@ class Renderer {
             screenPath.push(screenPoint);
         });
 
+        // Perspective clipping application, check if any of screnPath is null and if so, return
+        if (screenPath.some(p => p === null)) {
+            return;
+        }
+
         /*
         backface culling
         */
@@ -296,6 +303,7 @@ class Renderer {
             let sign = ab.x * ac.y - ac.x * ab.y;
             let isBackface = sign > 0;  // Sign reversed due to handedness
             if (isBackface && this.backfaceCulling) {
+                // Only backface is culled, keep rendering mesh
                 return;
             }
         }
@@ -337,9 +345,11 @@ class Renderer {
         // Fill volume enclosed by path (if any)
         if (fill) {
             this.ctx.fill();
-            this.stencilBufferCtx.fill();
-            this.depthBufferCtx.fill();
         }
+        // Always fill stencil and depth
+        this.stencilBufferCtx.fill();
+        this.depthBufferCtx.fill();
+
 
         this.ctx.closePath();
         this.stencilBufferCtx.closePath();
@@ -434,6 +444,21 @@ class Transform {
         this.rotation = this.rotation.add(delta);
         this.validateWorldMatrix();
     }
+
+    setPosition(position) {
+        this.position = position;
+        this.validateWorldMatrix();
+    }
+
+    setRotation(rotation) {
+        this.rotation = rotation;
+        this.validateWorldMatrix();
+    }
+
+    setScale(scale) {
+        this.scale = scale;
+        this.validateWorldMatrix();
+    }
 }
 
 
@@ -447,11 +472,13 @@ const main = () => {
 
     // Initialize transforms
     let cubeTransforms = [];
-    for (let i = 0; i < 20; ++i) {
+    for (let i = 0; i < document.getElementById("entitiesCount").value; ++i) {
         let position = new Vector(
             (2 * Math.random() - 1) * canvas.width,
             (2 * Math.random() - 1) * canvas.height,
             30 * (Math.random() * 2 - 1));
+        position.x = 350 * i;
+        position.y = 250 * i;
         position.z = 0;
 
         let rotation = new Vector(
@@ -459,12 +486,12 @@ const main = () => {
             360 * Math.random(),
             360 * Math.random());
         rotation = Vector.zero;
-        if (i === 1) rotation = Vector.zero;
+        // if (i === 1) rotation = Vector.zero;
         cubeTransforms.push(
             new Transform(
                 position,
                 rotation,
-                new Vector(100, 100, 100)
+                new Vector(250, 250, 250)
             )
         )
     }
@@ -472,16 +499,17 @@ const main = () => {
     for (let t of cubeTransforms) {
         cubeModelMatrices.push(t.toWorldMatrix());
     }
-    cubeModelMatrices.push(createScaleMatrix(new Vector(100, 100, 100)));
 
 
     const mouseToCanvas = (mouseEvent) => {
         const rect = canvas.getBoundingClientRect();
         var factorX = canvas.width / rect.width;
         var factorY = canvas.height / rect.height;
+        const xOffset = mouseEvent.clientX - rect.left;
+        const yOffset = mouseEvent.clientY - rect.top;
         return new Vector(
-            factorX * (mouseEvent.clientX - rect.left) - canvas.width / 2,
-            factorY * (mouseEvent.clientY - rect.top) - canvas.height / 2,
+            factorX * xOffset - canvas.width / 2,
+            factorY * yOffset - canvas.height / 2,
             0
         );
         // old: offset - width * 0.5
@@ -502,10 +530,10 @@ const main = () => {
         if (e.ctrlKey) {
             pickStencil(e);
         }
-        while (1) {
-            await signalEmitter.waitForSignal();
-            renderer.drawPoint2D(hitPoint, "red", true);
-        }
+        // while (1) {
+        //     await signalEmitter.waitForSignal();
+        //     renderer.drawPoint2D(hitPoint, "red", true);
+        // }
     });
 
     // Capture drag start and stop then draw path from start to stop
@@ -524,9 +552,13 @@ const main = () => {
             // TODO handedness -> negation
             let delta = new Vector(-e.movementX, -e.movementY, 0);
             let target = targetID == -1 ? renderer.camera : cubeTransforms[targetID];
-            target.adjustPosition(delta);
-            if (target != -1) {
+            if (targetID != -1) {
+                // TOOD unproject
+                // target.setPosition(mouseToCanvas(e).neg());
+                target.adjustPosition(delta);
                 cubeModelMatrices[targetID] = target.toWorldMatrix();
+            } else {
+                renderer.camera.adjustPosition(delta);
             }
         } else {
             // Arcball rotation
@@ -539,17 +571,17 @@ const main = () => {
             }
         }
 
-        await signalEmitter.waitForSignal();
-        renderer.drawPath2D([dragStart, dragStop]);
+        // await signalEmitter.waitForSignal();
+        // renderer.drawPath2D([dragStart, dragStop]);
     });
     canvas.addEventListener("mouseup", async (e) => {
         let myStart = dragStart
         dragStart = null;
         const dragStop = mouseToCanvas(e);
-        while (1) {
-            await signalEmitter.waitForSignal();
-            renderer.drawPath2D([myStart, dragStop]);
-        }
+        // while (1) {
+        //     await signalEmitter.waitForSignal();
+        //     renderer.drawPath2D([myStart, dragStop]);
+        // }
     });
 
 
@@ -563,8 +595,8 @@ const main = () => {
     let p2 = new Point(100, 30, 0);
 
     const cube = new Cube();
-    const cubeDcel = DCELRepresentation.fromSimpleMesh(makeIcosphere(0));
-    // const cubeDcel = DCELRepresentation.fromSimpleMesh(cube);
+    // const cubeDcel = DCELRepresentation.fromSimpleMesh(makeIcosphere(0));
+    const cubeDcel = DCELRepresentation.fromSimpleMesh(cube);
     const grid = makeGrid();
     // const cube = makeIcosphere(3);
     const verts = cube.getVertices();
@@ -627,7 +659,7 @@ const main = () => {
                     "pink"
                 ]
                 const drawCube = (cube, modelMatrix, entityId) => {
-                    cubeDcel.faces.forEach((face, i) => {
+                    const drawFace = (face, modelMatrix, i, entityId) => {
                         const faceVerts = face.getVertices();
                         const faceNormal = face.GetFaceNormal();
                         // We now apply simple shading by taking faceNormal times directional light vector
@@ -642,7 +674,7 @@ const main = () => {
                         // const diffuse = lightColor.multiply(brightness);
                         const diffuse = combinedColor.scale(brightness); // TODO: account for own color
                         const faceColor = renderer.shadingControl ? `rgba(${diffuse.x}, ${diffuse.y}, ${diffuse.z}, 1)` : colorNames[i % colorNames.length];
-                        renderer.drawPath(
+                        return renderer.drawPath(
                             faceVerts,
                             modelMatrix,
                             faceColor,
@@ -652,6 +684,10 @@ const main = () => {
                             `rgba(${entityId}, ${entityId}, ${entityId}, 1)`
                             // `rgba(${i * 30}, ${i * 30}, ${i * 10}, 1)`
                         );
+                    };
+
+                    cubeDcel.faces.forEach((face, i) => {
+                        drawFace(face, modelMatrix, i, entityId);
                     });
 
                     return;
@@ -685,27 +721,45 @@ const main = () => {
                 cubeModelMatrices.forEach((modelMatrix, index) => drawCube(cube, modelMatrix, index));
 
                 // Run collision detection between selected and another entity
-                const selectedID = Number(document.getElementById("controlledEntity").value);
+                let selectedID = Number(document.getElementById("controlledEntity").value);
+                // Patch: selectedID to always be 0
+                selectedID = 0;
                 if (selectedID == -1) return;
                 const s1HalfMesh = cubeDcel;
                 const s1Matrix = cubeModelMatrices[selectedID];
                 const s2HalfMesh = cubeDcel;
                 const s2Matrix = cubeModelMatrices[1];
                 const { result: separating, info } = CollisionDetection.SATEx(s1HalfMesh, s2HalfMesh, s1Matrix, s2Matrix);
-                renderer.drawText(10, 10, `Separating: ${separating}`, 10, "black", "bold 15px Arial");
-                if(!separating) {
-                    const contacts = createContacts(s1HalfMesh, s2HalfMesh, s1Matrix, s2Matrix, info);
-                    if(contacts.length == 0) return;
-                    console.log(contacts);
+                renderer.drawText(renderer.canvas.width / 2 - 200, 60 - renderer.canvas.height / 2, `Separating: ${separating}`, 10, "black", "bold 20px Arial");
+                if (!separating) {
+                    const contacts = createContacts(
+                        s1HalfMesh,
+                        s2HalfMesh,
+                        s1Matrix,
+                        s2Matrix,
+                        info,
+                        renderer,
+                        Number(document.getElementById("clipStepsCount").value)
+                    );
+                    if (!contacts || contacts.length == 0) return;
+                    // console.log(contacts);
                     // Now we draw the contacts
-                    contacts.forEach(contact => {
-                        renderer.drawPoint(
-                            contact,
-                            false,
-                            Matrix.identity,
-                            "purple"
-                        )
-                    });
+                    renderer.drawPath(
+                        contacts,
+                        Matrix.identity,
+                        "purple",
+                        true,
+                        true,
+                        true
+                    );
+                    // contacts.forEach(contact => {
+                    //     renderer.drawPoint(
+                    //         contact,
+                    //         false,
+                    //         Matrix.identity,
+                    //         "purple"
+                    //     )
+                    // });
                 }
             }
             updateFrame();
@@ -729,7 +783,7 @@ const main = () => {
     let entityListElement = document.getElementById("controlledEntity");
     const populateEntityList = (element) => {
         // Add options with values from 0 to 20, and then -1
-        for (let i = -1; i < 20; ++i) {
+        for (let i = -1; i < document.getElementById("entitiesCount").value; ++i) {
             let option = document.createElement("option");
             option.value = i;
             option.text = i;
@@ -790,7 +844,7 @@ Regarding:
 3. solved, order should have been P*O and not O*P, has to do with major
 4. fixed, now done only when applying perspective
 5. Issue was related to order - we need to apply rotation *before* translation because we rotate around the origin
-6. TODO
+6. Fixed. Issue was not checking w > 0, but it really did end up being inverted. Again due to handedness issue probably.
 7. Fixed. Again - rotation is around the origin so needs to happen before translation, or with a similarity transform T*R*T^-1
 */
 

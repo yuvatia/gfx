@@ -54,6 +54,13 @@ class HalfEdge {
         // );
     }
 
+    getVertices(transform = Matrix.identity) {
+        return [
+            transform.multiplyPoint(this.origin.position.toPoint()),
+            transform.multiplyPoint(this.next.origin.position.toPoint())
+        ];
+    }
+
     getDirection() {
         return this.next.origin.position.sub(this.origin.position);
     }
@@ -234,15 +241,17 @@ class DCELRepresentation {
         let maxDot = -Infinity;
         let support = null;
 
-        this.vertices.forEach(vertex => {
-            const dot = vertex.position.dotProduct(direction);
-            if (dot > maxDot) {
-                maxDot = dot;
-                support = vertex.position;
-            }
-        });
+        this.vertices
+            .map(v => transform.multiplyPoint(v.position).toVector())
+            .forEach(vWorld => {
+                const dot = vWorld.dotProduct(direction);
+                if (dot > maxDot) {
+                    maxDot = dot;
+                    support = vWorld;
+                }
+            });
 
-        return transform.multiplyPoint(new Point(...support.toArray()));
+        return support;
     }
 
     projectOnAxis(axis, transform = Matrix.identity) {

@@ -3,7 +3,7 @@ import { createTransformationMatrix } from "./affine.js";
 
 export class Camera {
     constructor() {
-        this.position = new Vector(0, 0, -1000);
+        this.position = new Vector(0, 0, -2000);
         this.rotation = new Vector(1, 0, 0);
         this.validateViewMatrix();
         this.installCameraControls();
