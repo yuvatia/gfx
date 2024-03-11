@@ -104,7 +104,7 @@ export function invertRotation(rotationMatrix) {
 }
 
 export function invertScale(scaleMatrix) {
-    const [x, y, z] = [1 / scaleMatrix[0], 1 / scaleMatrix[5], 1 / scaleMatrix[10]];
+    const [x, y, z] = [1 / scaleMatrix.elements[0], 1 / scaleMatrix.elements[5], 1 / scaleMatrix.elements[10]];
     return createScaleMatrix(new Vector(x, y, z));
 }
 
@@ -125,27 +125,39 @@ export function createTransformationMatrix(translationVector, rotationEuler = ne
     // rotation is around the origin.
     // So we have T * R * S
     // To inverse: (TRS)^(-1) = S^(-1) * R^T * T^(-1)
-    
+
     return translation.multiplyMatrix(rotationXYZ).multiplyMatrix(scale);
     return scale.multiplyMatrix(rotationXYZ).multiplyMatrix(translation);
 }
 
-export function rotationToEulerAngles(matrix) {
-    // Assuming the angles are in radians
-    let sy = Math.sqrt(matrix[0] * matrix[0] + matrix[4] * matrix[4]);
-    let singular = sy < 1e-6;
-    let x, y, z;
-    if (!singular) {
-        x = Math.atan2(matrix[9], matrix[10]);
-        y = Math.atan2(-matrix[8], sy);
-        z = Math.atan2(matrix[4], matrix[0]);
+export function decomposeRotationXYZ(rotationMatrix) {
+    const { elements } = rotationMatrix;
+
+    let yRot, xRot, zRot;
+
+    if (elements[6] !== 1 && elements[6] !== -1) {
+        yRot = Math.asin(-elements[2]);
+        xRot = Math.atan2(elements[6], elements[10]);
+        zRot = Math.atan2(elements[1], elements[0]);
     } else {
-        x = Math.atan2(-matrix[6], matrix[5]);
-        y = Math.atan2(-matrix[8], sy);
-        z = 0;
+        zRot = 0; // In the case of gimbal lock, set one angle to zero
+        if (elements[6] === -1) {
+            yRot = Math.PI / 2;
+            xRot = zRot + Math.atan2(elements[4], elements[5]);
+        } else {
+            yRot = -Math.PI / 2;
+            xRot = -zRot + Math.atan2(-elements[4], -elements[5]);
+        }
     }
-    return new Point(x, y, z);
+
+    // Convert radians to degrees
+    xRot = xRot * 180 / Math.PI;
+    yRot = yRot * 180 / Math.PI;
+    zRot = zRot * 180 / Math.PI;
+
+    return new Vector(xRot, yRot, zRot);
 }
+
 
 export function CreateOrthographicMatrix(left, right, bottom, top, near, far) {
     // Transform some box shape defined by A(left, bottom, near) and B(right, top, far) to a unit cube

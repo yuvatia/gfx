@@ -2,10 +2,11 @@ import { Cube, Icosahedron, makeGrid, makeIcosphere, makeRect } from "./geometry
 import { SignalEmitter } from "./signal_emitter.js";
 import { Point, Vector, Matrix } from "./math.js"
 import { Camera } from "./camera.js";
-import { createTransformationMatrix, createRotationMatrixX, createRotationMatrixY, createRotationMatrixZ, createTranslationMatrix, createScaleMatrix, createaAxisAngleRotationMatrix, CreatePerspectiveProjection, CreateSymmetricOrthographicProjection, invertTranslation } from "./affine.js";
+import { createTransformationMatrix, createRotationMatrixX, createRotationMatrixY, createRotationMatrixZ, createTranslationMatrix, createScaleMatrix, createaAxisAngleRotationMatrix, CreatePerspectiveProjection, CreateSymmetricOrthographicProjection, invertTranslation, createRotationMatrixXYZ, decomposeRotationXYZ } from "./affine.js";
 import { DCELRepresentation } from "./halfmesh.js";
 import { CollisionDetection } from "./collision.js";
 import { createContacts } from "./sat_contact_creation.js";
+import { Rigidbody } from "./kinematics.js";
 
 class Renderer {
     constructor(canvas) {
@@ -424,15 +425,33 @@ class Transform {
         this.rotation = rotation;
         this.scale = scale;
 
+        this.overridenRotationMatrix = null;
+
         this.validateWorldMatrix();
     }
 
     validateWorldMatrix() {
+        if (this.overridenRotationMatrix) {
+            this.worldMatrix_ =
+                createTranslationMatrix(this.position)
+                    .multiplyMatrix(this.overridenRotationMatrix)
+                    .multiplyMatrix(createScaleMatrix(this.scale));
+            return;
+        }
+        // Make sure rotation ranges from -180 to 180
+        this.rotation = this.rotation.mod(360);
         this.worldMatrix_ = createTransformationMatrix(this.position, this.rotation, this.scale);
     }
 
     toWorldMatrix() {
         return this.worldMatrix_;
+    }
+
+    getRotationMatrix() {
+        if (this.overridenRotationMatrix) {
+            return this.overridenRotationMatrix;
+        }
+        return createRotationMatrixXYZ(...this.rotation.toArray());
     }
 
     adjustPosition(delta) {
@@ -718,6 +737,19 @@ const main = () => {
                     });
                 }
 
+                const updateRigidbody = () => {
+                    const fixedStep = elapsed / 100;
+                    new Rigidbody(cubeTransforms[0], 20, Vector.zero).integratePosition(fixedStep / 150);
+                    cubeTransforms[0].validateWorldMatrix();
+                    cubeModelMatrices[0] = cubeTransforms[0].toWorldMatrix();
+
+                    new Rigidbody(cubeTransforms[1], 20, Vector.zero).integratePositionPhysicallyAccurate(fixedStep);
+                    cubeTransforms[1].validateWorldMatrix();
+                    cubeModelMatrices[1] = cubeTransforms[1].toWorldMatrix();
+
+                };
+                updateRigidbody();
+
                 cubeModelMatrices.forEach((modelMatrix, index) => drawCube(cube, modelMatrix, index));
 
                 // Run collision detection between selected and another entity
@@ -729,8 +761,9 @@ const main = () => {
                 const s1Matrix = cubeModelMatrices[selectedID];
                 const s2HalfMesh = cubeDcel;
                 const s2Matrix = cubeModelMatrices[1];
+                // return;
                 const { result: separating, info } = CollisionDetection.SATEx(s1HalfMesh, s2HalfMesh, s1Matrix, s2Matrix);
-                renderer.drawText(renderer.canvas.width / 2 - 200, 60 - renderer.canvas.height / 2, `Separating: ${separating}`, 10, "black", "bold 20px Arial");
+                renderer.drawText(renderer.canvas.width / 2 - 200, 60 - renderer.canvas.height / 2, `Separating: ${separating}\nDepth:${info ? info.depth : "N/A"}`, 15, "black", "bold 15px Arial");
                 if (!separating) {
                     const contacts = createContacts(
                         s1HalfMesh,

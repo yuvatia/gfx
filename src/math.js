@@ -52,6 +52,10 @@ export class Vector {
         return new Vector(this.x * scalar, this.y * scalar, this.z * scalar);
     }
 
+    mod(scalar) {
+        return new Vector(this.x % scalar, this.y % scalar, this.z % scalar);
+    }
+
     divide(scalar) {
         return this.scale(1 / scalar);
     }
@@ -79,7 +83,7 @@ export class Vector {
     normalize() {
         let mag = this.magnitude();
         // Avoid zero division
-        if (mag === 0) { return new Vector(0, 0, 0);  };
+        if (mag === 0) { return new Vector(0, 0, 0); };
         return new Vector(
             this.x / mag,
             this.y / mag,
@@ -98,6 +102,14 @@ export class Vector {
     toString() {
         return `(${this.x.toFixed(2)}, ${this.y.toFixed(2)}, ${this.z.toFixed(2)})`;
     }
+
+    equals(other, epsilon = 0.0001) {
+        return (
+            Math.abs(this.x - other.x) < epsilon &&
+            Math.abs(this.y - other.y) < epsilon &&
+            Math.abs(this.z - other.z) < epsilon
+        );
+    }
 }
 
 // Column major
@@ -107,6 +119,55 @@ export class Matrix {
     }
 
     static identity = new Matrix();
+
+    static createDiagonal(vec) {
+        const [x, y, z] = vec.toArray();
+        return new Matrix([
+            x, 0, 0, 0,
+            0, y, 0, 0,
+            0, 0, z, 0,
+            0, 0, 0, 1
+        ]);
+    }
+
+    static createSkewSymmetric(vector) {
+        // Column-major
+        const [x, y, z] = vector.toArray();
+        return new Matrix([
+            0, -z, y, 0,
+            z, 0, -x, 0,
+            -y, x, 0, 0,
+            0, 0, 0, 1
+        ]);
+    }
+
+    static CreateCrossMatrix(vector) {
+        return this.createSkewSymmetric(vector);
+    }
+
+    determinant() {
+        // Column-major
+        const e = this.elements;
+        return (
+            e[0] * e[5] * e[10] * e[15] + e[0] * e[9] * e[14] * e[7] + e[0] * e[13] * e[6] * e[11] +
+            e[4] * e[1] * e[14] * e[11] + e[4] * e[9] * e[2] * e[15] + e[4] * e[13] * e[10] * e[3] +
+            e[8] * e[1] * e[6] * e[15] + e[8] * e[5] * e[14] * e[3] + e[8] * e[13] * e[2] * e[7] +
+            e[12] * e[1] * e[10] * e[7] + e[12] * e[5] * e[2] * e[11] + e[12] * e[9] * e[6] * e[3] -
+            e[0] * e[5] * e[14] * e[11] - e[0] * e[9] * e[6] * e[15] - e[0] * e[13] * e[10] * e[7] -
+            e[4] * e[1] * e[10] * e[15] - e[4] * e[9] * e[14] * e[3] - e[4] * e[13] * e[2] * e[11] -
+            e[8] * e[1] * e[14] * e[7] - e[8] * e[5] * e[2] * e[15] - e[8] * e[13] * e[6] * e[3] -
+            e[12] * e[1] * e[6] * e[11] - e[12] * e[5] * e[10] * e[3] - e[12] * e[9] * e[2] * e[7]
+        );
+    }
+
+    inverseDiagonal() {
+        const elements = this.elements.map((el, i) => ((i % 5 === 0 && el !== 0) ? 1.0 / el : el));
+        return new Matrix(elements);
+    }
+
+    scaleBy(scalar) {
+        return new Matrix(this.elements.map(el => el * scalar));
+    }
 
     multiplyPoint(point) {
         // TODO performance!!
@@ -128,6 +189,14 @@ export class Matrix {
         const newY = e[4] * x + e[5] * y + e[6] * z;
         const newZ = e[8] * x + e[9] * y + e[10] * z;
         return new Vector(newX, newY, newZ);
+    }
+
+    addMatrix(other) {
+        const result = new Array(16);
+        for (let i = 0; i < 16; i++) {
+            result[i] = this.elements[i] + other.elements[i];
+        }
+        return new Matrix(result);
     }
 
     // if this=A and matrix=B, returns A*B
@@ -172,5 +241,9 @@ export class Matrix {
             if (i < 3) str += ", ";
         }
         return str;
+    }
+
+    equals(other, epsilon = 0.0001) {
+        return this.elements.every((el, i) => Math.abs(el - other.elements[i]) < epsilon);
     }
 }
