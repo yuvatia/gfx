@@ -120,6 +120,18 @@ export class Matrix {
 
     static identity = new Matrix();
 
+    static createFromAxes(xAxis, yAxis, zAxis) {
+        const [xx, xy, xz] = xAxis.toArray();
+        const [yx, yy, yz] = yAxis.toArray();
+        const [zx, zy, zz] = zAxis.toArray();
+        return new Matrix([
+            xx, xy, xz, 0,
+            yx, yy, yz, 0,
+            zx, zy, zz, 0,
+            0, 0, 0, 1
+        ]);
+    }
+
     static createDiagonal(vec) {
         const [x, y, z] = vec.toArray();
         return new Matrix([

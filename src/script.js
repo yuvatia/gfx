@@ -614,7 +614,7 @@ const main = () => {
     let p2 = new Point(100, 30, 0);
 
     const cube = new Cube();
-    // const cubeDcel = DCELRepresentation.fromSimpleMesh(makeIcosphere(0));
+    // const cubeDcel = DCELRepresentation.fromSimpleMesh(makeIcosphere(1));
     const cubeDcel = DCELRepresentation.fromSimpleMesh(cube);
     const grid = makeGrid();
     // const cube = makeIcosphere(3);

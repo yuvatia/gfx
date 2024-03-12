@@ -158,6 +158,45 @@ export function decomposeRotationXYZ(rotationMatrix) {
     return new Vector(xRot, yRot, zRot);
 }
 
+export function getRotationAxes(rotationMatrix) {
+    // Rotation matrix is column-major
+    const { elements } = rotationMatrix;
+    const x = new Vector(elements[0], elements[1], elements[2]);
+    const y = new Vector(elements[4], elements[5], elements[6]);
+    const z = new Vector(elements[8], elements[9], elements[10]);
+    return [x, y, z];
+}
+
+export function reOrthogonalizeRotation(rotationMatrix) {
+    // Skip if det is within epsilon range from 1
+    const det = rotationMatrix.determinant();
+    if (det > 0.999 && det < 1.001) {
+        return rotationMatrix;
+    }
+
+    // Work under the assumption that det|M| is only slightly > 1.
+    // let x, y, z be the axes of M
+    // We assume M is only slightly drifted, meaning x.dotProduct(y) is close to 0
+    // Further, we will assume that the delta is equally divided. This gives:
+
+    const [x, y, z] = getRotationAxes(rotationMatrix);
+    const error = x.dotProduct(y);
+    const halfError = error / 2.0;
+
+    let xOrt = x.sub(y.scale(halfError));
+    let yOrt = y.add(x.scale(halfError));
+    // z is orthogonal to x and y, so z = x.crossProduct(y)
+    let zOrt = xOrt.crossProduct(yOrt);
+
+    // We now wish to normalize
+    // See https://stackoverflow.com/questions/23080791/eigen-re-orthogonalization-of-rotation-matrix
+    let xFinal = xOrt.scale((3 - xOrt.magnitude2()) * 0.5);  // (3-(1+d))/2 = (2-d)/2 = 1 - d/2 so we scale by the error factor?
+    let yFinal = yOrt.scale((3 - yOrt.magnitude2()) * 0.5);
+    let zFinal = zOrt.scale((3 - zOrt.magnitude2()) * 0.5);
+
+    // Construct matrix from axes
+    return Matrix.createFromAxes(xFinal, yFinal, zFinal);
+}
 
 export function CreateOrthographicMatrix(left, right, bottom, top, near, far) {
     // Transform some box shape defined by A(left, bottom, near) and B(right, top, far) to a unit cube

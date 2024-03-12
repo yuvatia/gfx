@@ -1,4 +1,4 @@
-import { createScaleMatrix, decomposeRotationXYZ, invertRotation } from "./affine.js";
+import { createScaleMatrix, decomposeRotationXYZ, invertRotation, reOrthogonalizeRotation } from "./affine.js";
 import { Matrix, Vector } from "./math.js";
 
 const getCubeInertiaTensor = (a, b, c) => {
@@ -71,17 +71,26 @@ export class Rigidbody {
         let finalRotationMatrix = R.addMatrix(dRotationMatrix);
         // set w to 1
         finalRotationMatrix.elements[15] = 1;
-        // Note: euler decomposition maintains det = 1 so no "explosion",
-        // however it has gimbal lock
-        const newEulerAngles = decomposeRotationXYZ(finalRotationMatrix);
-        // Gimbal lock messes it up
-        this.transform.rotation = newEulerAngles;
-        // this.transform.overridenRotationMatrix = finalRotationMatrix;
 
-        // TODO: we have an issue here where we lose precission
-        // and need to re-orthonormalize
-        // console.log(finalRotationMatrix.determinant());
-        console.log(`${newEulerAngles} `);
-        // this.transform.rotation = newEulerAngles;
+        // Use euler decmpositon
+        const useEulerAngles = false;
+        if (useEulerAngles) {
+            // Note: euler decomposition maintains det = 1 so no "explosion",
+            // however it has gimbal lock
+            const newEulerAngles = decomposeRotationXYZ(finalRotationMatrix);
+            // Gimbal lock messes it up
+            this.transform.rotation = newEulerAngles;
+            console.log(`${newEulerAngles} `);
+            return;
+        }
+
+        // Use rotation override
+        else {
+            // TODO: we have an issue here where we lose precission
+            // and need to re-orthonormalize
+            // console.log(finalRotationMatrix.determinant());
+            finalRotationMatrix = reOrthogonalizeRotation(finalRotationMatrix);
+            this.transform.overridenRotationMatrix = finalRotationMatrix;
+        }
     }
 }
