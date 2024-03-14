@@ -6,12 +6,12 @@ import { createTransformationMatrix, createRotationMatrixX, createRotationMatrix
 import { DCELRepresentation } from "./halfmesh.js";
 import { CollisionDetection } from "./collision.js";
 import { createContacts } from "./sat_contact_creation.js";
-import { Rigidbody } from "./kinematics.js";
+import { Rigidbody, fooBar, frameConstraint } from "./kinematics.js";
 
 class Renderer {
     constructor(canvas) {
         this.backfaceCulling = true;
-        this.shadingControl = true;
+        this.shadingControl = false;
 
         this.canvas = canvas;
         this.ctx = canvas.getContext("2d");
@@ -506,11 +506,13 @@ const main = () => {
             360 * Math.random());
         rotation = Vector.zero;
         // if (i === 1) rotation = Vector.zero;
+        let scale = new Vector(250, 250, 250);
+        if (i === 1) scale = new Vector(50, 50, 50);
         cubeTransforms.push(
             new Transform(
                 position,
                 rotation,
-                new Vector(250, 250, 250)
+                scale
             )
         )
     }
@@ -518,7 +520,12 @@ const main = () => {
     for (let t of cubeTransforms) {
         cubeModelMatrices.push(t.toWorldMatrix());
     }
-
+    let cubeRigidbodies = [];
+    for (let t of cubeTransforms) {
+        cubeRigidbodies.push(new Rigidbody(t, 20, Vector.zero, Vector.zero));
+    }
+    // cubeRigidbodies[1].linearVelocity = new Vector(-1, 1, 0.2);
+    // cubeRigidbodies[1].angularVelocity = new Vector(100, 20, 0);
 
     const mouseToCanvas = (mouseEvent) => {
         const rect = canvas.getBoundingClientRect();
@@ -738,15 +745,37 @@ const main = () => {
                 }
 
                 const updateRigidbody = () => {
-                    const fixedStep = elapsed / 100;
-                    new Rigidbody(cubeTransforms[0], 20, Vector.zero).integratePosition(fixedStep / 150);
+                    // const fixedStep = elapsed / 50;
+                    const fixedStep = 0.2;
+
+                    let rLocal = cubeRigidbodies[0].transform.
+                        getRotationMatrix().
+                        multiplyMatrix(createScaleMatrix(cubeRigidbodies[0].transform.scale)).
+                        multiplyVector(Vector.one.scale(0.5));
+                    // rLocal = cubeRigidbodies[0].transform.getRotationMatrix().multiplyVector(new Vector(-100, -100, 0));
+                    frameConstraint(
+                        cubeRigidbodies[0],
+                        rLocal,
+                        cubeRigidbodies[1].transform.position,
+                        fixedStep
+                    );
+                    // First, apply constraints
+                    // fooBar(cubeRigidbodies[0], cubeRigidbodies[1].transform.position, 10, fixedStep / 150);
+
+                    // Finally, integrate position
+
+                    // cubeRigidbodies[0].angularVelocity = new Vector(5000, 0, 0);
+                    // cubeRigidbodies[0].integratePosition(fixedStep);
+                    cubeRigidbodies[0].integratePositionPhysicallyAccurate(fixedStep);
                     cubeTransforms[0].validateWorldMatrix();
                     cubeModelMatrices[0] = cubeTransforms[0].toWorldMatrix();
 
-                    new Rigidbody(cubeTransforms[1], 20, Vector.zero).integratePositionPhysicallyAccurate(fixedStep);
+                    cubeRigidbodies[1].integratePositionPhysicallyAccurate(fixedStep);
                     cubeTransforms[1].validateWorldMatrix();
                     cubeModelMatrices[1] = cubeTransforms[1].toWorldMatrix();
-
+                    // const m = cubeTransforms[0].getRotationMatrix();
+                    // const mInv = Matrix.inverseMatrix3x3(m);
+                    // console.log(m.multiplyMatrix(mInv).isIdentity());
                 };
                 updateRigidbody();
 
@@ -761,7 +790,11 @@ const main = () => {
                 const s1Matrix = cubeModelMatrices[selectedID];
                 const s2HalfMesh = cubeDcel;
                 const s2Matrix = cubeModelMatrices[1];
-                // return;
+
+                if (!document.getElementById("collisionControl").checked) {
+                    return;
+                }
+
                 const { result: separating, info } = CollisionDetection.SATEx(s1HalfMesh, s2HalfMesh, s1Matrix, s2Matrix);
                 renderer.drawText(renderer.canvas.width / 2 - 200, 60 - renderer.canvas.height / 2, `Separating: ${separating}\nDepth:${info ? info.depth : "N/A"}`, 15, "black", "bold 15px Arial");
                 if (!separating) {

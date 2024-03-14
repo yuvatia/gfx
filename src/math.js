@@ -31,9 +31,19 @@ export class Vector {
     }
 
     static zero = new Vector(0, 0, 0);
+    static one = new Vector(1, 1, 1);
 
     toPoint() {
         return new Point(this.x, this.y, this.z);
+    }
+
+    distance(p2) {
+        // as points
+        return this.sub(p2).magnitude();
+    }
+
+    distance2(p2) {
+        return this.sub(p2).magnitude2();
     }
 
     add(vector) {
@@ -114,11 +124,57 @@ export class Vector {
 
 // Column major
 export class Matrix {
-    constructor(elements) {
+    constructor(elements, inverted = null) {
         this.elements = elements || Array.from({ length: 16 }, (_, i) => (i % 5 === 0 ? 1 : 0)); // Identity matrix
     }
 
     static identity = new Matrix();
+
+    clone() {
+        return new Matrix(this.elements.slice());
+    }
+
+    isIdentity() {
+        return this.equals(Matrix.identity);
+    }
+
+    static inverseMatrix3x3(matrix) {
+        // https://ardoris.wordpress.com/2008/07/18/general-formula-for-the-inverse-of-a-3x3-matrix/
+        const m = matrix.elements;
+
+        // Extract the upper-left 3x3 portion of the matrix
+        const a00 = m[0], a01 = m[1], a02 = m[2];
+        const a10 = m[4], a11 = m[5], a12 = m[6];
+        const a20 = m[8], a21 = m[9], a22 = m[10];
+
+        // Calculate determinant
+        const det = matrix.determinant();
+
+        if (det === 0) {
+            return null;
+        }
+
+        // Calculate inverse determinant
+        const invDet = 1.0 / det;
+
+        // Calculate the inverse 3x3 matrix
+        const b00 = (a11 * a22 - a12 * a21) * invDet;
+        const b01 = (a02 * a21 - a01 * a22) * invDet;
+        const b02 = (a01 * a12 - a02 * a11) * invDet;
+        const b10 = (a12 * a20 - a10 * a22) * invDet;
+        const b11 = (a00 * a22 - a02 * a20) * invDet;
+        const b12 = (a02 * a10 - a00 * a12) * invDet;
+        const b20 = (a10 * a21 - a11 * a20) * invDet;
+        const b21 = (a01 * a20 - a00 * a21) * invDet;
+        const b22 = (a00 * a11 - a01 * a10) * invDet;
+
+        return new Matrix([
+            b00, b01, b02, 0,
+            b10, b11, b12, 0,
+            b20, b21, b22, 0,
+            0, 0, 0, 1
+        ]);
+    }
 
     static createFromAxes(xAxis, yAxis, zAxis) {
         const [xx, xy, xz] = xAxis.toArray();
@@ -153,7 +209,7 @@ export class Matrix {
         ]);
     }
 
-    static CreateCrossMatrix(vector) {
+    static createCrossMatrix(vector) {
         return this.createSkewSymmetric(vector);
     }
 
@@ -208,6 +264,8 @@ export class Matrix {
         for (let i = 0; i < 16; i++) {
             result[i] = this.elements[i] + other.elements[i];
         }
+        // Make sure W remains 1
+        result[15] = 1;
         return new Matrix(result);
     }
 
