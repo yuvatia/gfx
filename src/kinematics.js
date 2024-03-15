@@ -1,5 +1,7 @@
 import { createScaleMatrix, decomposeRotationXYZ, invertRotation, reOrthogonalizeRotation } from "./affine.js";
 import { Matrix, Vector } from "./math.js";
+import { Contact } from "./oven/contact.js";
+import { createContacts } from "./sat_contact_creation.js";
 
 const getCubeInertiaTensor = (a, b, c, mass) => {
     // a, b, c are the side lengths of the cube (scalars)
@@ -20,10 +22,38 @@ const getCubeInertiaTensor = (a, b, c, mass) => {
     ]);
 }
 
+const getSphereInertiaTensor = (r, mass) => {
+    // r is the radius of the sphere (scalar)
+    // returns a 3x3 matrix
+    const factor = (2.0 / 5.0) * mass * r * r;
+    return new Matrix([
+        factor, 0, 0, 0,
+        0, factor, 0, 0,
+        0, 0, factor, 0,
+        0, 0, 0, 1
+    ]);
+
+}
+
 const getInverseCubeInertiaTensor = (a, b, c, mass) => {
     // Inverse diagonal of getCubeInertiaTensor
     return getCubeInertiaTensor(a, b, c, mass).inverseDiagonal();
 }
+
+const getInverseSphereInertiaTensor = (r, mass) => {
+    // Inverse diagonal of getCubeInertiaTensor
+    return getSphereInertiaTensor(r, mass).inverseDiagonal();
+}
+
+export const getInverseSphereInertiaTensorFromTransform = (transform, mass) => {
+    const [a, b, c] = transform.scale.toArray();
+    // Assuming a = b = c = r
+    const inverseI0 = getInverseSphereInertiaTensor(a, mass);
+    const rotationMatrix = transform.getRotationMatrix();
+    const invertedRotationMatrix = invertRotation(rotationMatrix);
+    return rotationMatrix.multiplyMatrix(inverseI0).multiplyMatrix(invertedRotationMatrix);
+}
+
 
 
 export const getInverseCubeInertiaTensorFromTransform = (transform, mass) => {
@@ -42,6 +72,23 @@ export class Rigidbody {
 
         this.linearVelocity = linearVelocity || new Vector(1, 0, 0);
         this.angularVelocity = angularVelocity || new Vector(1000, 3000, 0);
+
+        this.friction = 2;
+        this.restitution = 0;
+
+        this.isSphere = true;
+    }
+
+    getInverseInertiaTensor() {
+        if (this.isSphere) {
+            return getInverseSphereInertiaTensorFromTransform(this.transform, this.mass);
+        }
+        return getInverseCubeInertiaTensorFromTransform(this.transform, this.mass);
+    }
+
+    setMass(newMass) {
+        this.mass = newMass;
+        this.invMass = this.mass === 0 ? 0 : 1 / this.mass;
     }
 
     integratePosition(dt) {
@@ -57,7 +104,7 @@ export class Rigidbody {
     }
 
     getOmega() {
-        return getInverseCubeInertiaTensorFromTransform(this.transform, this.mass).multiplyVector(this.angularVelocity);
+        return this.getInverseInertiaTensor().multiplyVector(this.angularVelocity);
     }
 
     integratePositionPhysicallyAccurate(dt) {
@@ -137,7 +184,7 @@ export const frameConstraint = (rb, r, p, dt) => {
     const Gravity = new Vector(0, -20, 0);
     const massInv = rb.massInv;
 
-    const inertiaInvWs = getInverseCubeInertiaTensorFromTransform(rb.transform, rb.mass);
+    const inertiaInvWs = rb.getInverseInertiaTensor();
 
     // gravity
     rb.linearVelocity = rb.linearVelocity.add(Gravity.scale(dt));
@@ -158,6 +205,30 @@ export const frameConstraint = (rb, r, p, dt) => {
     rb.linearVelocity = rb.linearVelocity.scale(0.98); // temp magic
     rb.angularVelocity = rb.angularVelocity.scale(0.98); // temp magic 
 }
+
+export const contactConstraint = (rb1, rb2, contacts, normal, depth, dt) => {
+    // PositionA and PositionB are contact points in A, B relative to A, B.
+    for (let contact of contacts) {
+        let p = new Vector(...contact.toArray());
+        let PositionA = p.sub(rb1.transform.position);
+        let PositionB = p.sub(rb2.transform.position);
+        let c = new Contact(
+            rb1, rb2, PositionA, PositionB, normal, depth
+        );
+        c.initVelocityConstraint(dt);
+        c.solveVelocityConstraint(dt);
+
+    }
+}
+
+export const contactConstraintForSphere = (rb1, rb2, contactA, contactB, normal, depth, dt) => {
+    let c = new Contact(
+        rb1, rb2, contactA, contactB, normal, depth
+    );
+    c.initVelocityConstraint(dt);
+    c.solveVelocityConstraint(dt);
+}
+
 
 export const frameConstraint1Broken = (rb, r, p, dt) => {
     dt = 0.02;
@@ -199,7 +270,7 @@ export const frameConstraint1Broken = (rb, r, p, dt) => {
     const linearDelta = lambda.scale(rb.massInv);
     rb.linearVelocity = rb.linearVelocity.add(linearDelta);
     const angularDelta = inertiaInvWs.multiplyMatrix(s).multiplyVector(lambda);
-    console.log(`${inertiaInvWs}`);
+    // console.log(`${inertiaInvWs}`);
     rb.angularVelocity = rb.angularVelocity.add(angularDelta);
 
     // damping

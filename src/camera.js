@@ -14,7 +14,6 @@ export class Camera {
         document.addEventListener('keydown', (event) => {
             if (event.shiftKey) {
                 if (event.key === 'W') {
-                    console.log('here');
                     this.adjustPosition(new Vector(0, 50, 0));
                 } else if (event.key === 'S') {
                     this.adjustPosition(new Vector(0, -50, 0));

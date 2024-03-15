@@ -37,6 +37,10 @@ export class Vector {
         return new Point(this.x, this.y, this.z);
     }
 
+    clone() {
+        return new Vector(this.x, this.y, this.z);
+    }
+
     distance(p2) {
         // as points
         return this.sub(p2).magnitude();

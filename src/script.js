@@ -2,16 +2,17 @@ import { Cube, Icosahedron, makeGrid, makeIcosphere, makeRect } from "./geometry
 import { SignalEmitter } from "./signal_emitter.js";
 import { Point, Vector, Matrix } from "./math.js"
 import { Camera } from "./camera.js";
-import { createTransformationMatrix, createRotationMatrixX, createRotationMatrixY, createRotationMatrixZ, createTranslationMatrix, createScaleMatrix, createaAxisAngleRotationMatrix, CreatePerspectiveProjection, CreateSymmetricOrthographicProjection, invertTranslation, createRotationMatrixXYZ, decomposeRotationXYZ } from "./affine.js";
+import { createTransformationMatrix, createRotationMatrixX, createRotationMatrixY, createRotationMatrixZ, createTranslationMatrix, createScaleMatrix, createaAxisAngleRotationMatrix, CreatePerspectiveProjection, CreateSymmetricOrthographicProjection, invertTranslation, createRotationMatrixXYZ, decomposeRotationXYZ, invertRotation } from "./affine.js";
 import { DCELRepresentation } from "./halfmesh.js";
 import { CollisionDetection } from "./collision.js";
 import { createContacts } from "./sat_contact_creation.js";
-import { Rigidbody, fooBar, frameConstraint } from "./kinematics.js";
+import { Rigidbody, contactConstraint, contactConstraintForSphere, fooBar, frameConstraint } from "./kinematics.js";
+import { Sphere } from "./shape_queries.js";
 
 class Renderer {
     constructor(canvas) {
         this.backfaceCulling = true;
-        this.shadingControl = false;
+        this.shadingControl = true;
 
         this.canvas = canvas;
         this.ctx = canvas.getContext("2d");
@@ -318,8 +319,9 @@ class Renderer {
         if (stencilID === `rgba(${selectedID}, ${selectedID}, ${selectedID}, 1)`) {
             this.ctx.strokeStyle = "red";
         } else if (stencilID === "rgba(1, 1, 1, 1)") {
+            // Draw entityID one's wireframe
             // The one we compare against
-            this.ctx.strokeStyle = "blue";
+            // this.ctx.strokeStyle = "blue";
         }
 
         this.stencilBufferCtx.beginPath();
@@ -454,6 +456,10 @@ class Transform {
         return createRotationMatrixXYZ(...this.rotation.toArray());
     }
 
+    getRotationInverse() {
+        return invertRotation(this.getRotationMatrix());
+    }
+
     adjustPosition(delta) {
         this.position = this.position.add(delta);
         this.validateWorldMatrix();
@@ -506,8 +512,8 @@ const main = () => {
             360 * Math.random());
         rotation = Vector.zero;
         // if (i === 1) rotation = Vector.zero;
-        let scale = new Vector(250, 250, 250);
-        if (i === 1) scale = new Vector(50, 50, 50);
+        let scale = new Vector(100, 100, 100);
+        if (i === 1) scale = new Vector(70, 70, 70);
         cubeTransforms.push(
             new Transform(
                 position,
@@ -524,8 +530,14 @@ const main = () => {
     for (let t of cubeTransforms) {
         cubeRigidbodies.push(new Rigidbody(t, 20, Vector.zero, Vector.zero));
     }
-    // cubeRigidbodies[1].linearVelocity = new Vector(-1, 1, 0.2);
-    // cubeRigidbodies[1].angularVelocity = new Vector(100, 20, 0);
+    // cubeRigidbodies[1].linearVelocity = new Vector(-90, -100, 0);
+    cubeRigidbodies[1].setMass(100);
+    // cubeRigidbodies[0].angularVelocity = new Vector(1, 0, 0);
+
+
+    // Stacking:
+    cubeRigidbodies[1].linearVelocity = new Vector(-20, -100, 0);
+    cubeRigidbodies[0].transform.position = cubeRigidbodies[1].transform.position.sub(new Vector(0, 500, 0));
 
     const mouseToCanvas = (mouseEvent) => {
         const rect = canvas.getBoundingClientRect();
@@ -621,8 +633,8 @@ const main = () => {
     let p2 = new Point(100, 30, 0);
 
     const cube = new Cube();
-    // const cubeDcel = DCELRepresentation.fromSimpleMesh(makeIcosphere(1));
-    const cubeDcel = DCELRepresentation.fromSimpleMesh(cube);
+    const cubeDcel = DCELRepresentation.fromSimpleMesh(makeIcosphere(2));
+    // const cubeDcel = DCELRepresentation.fromSimpleMesh(cube);
     const grid = makeGrid();
     // const cube = makeIcosphere(3);
     const verts = cube.getVertices();
@@ -667,9 +679,9 @@ const main = () => {
                 //     createScaleMatrix(new Vector(1000, 1000, 1))
                 // ));
                 // shine towards Z axis
-                let directionalLight = new Vector(0, 0, 1).normalize();
+                let directionalLight = new Vector(0, 0.5, -1).normalize();
                 // But actually move around in a circle
-                directionalLight = createRotationMatrixX(timestamp * 0.03).multiplyVector(directionalLight);
+                // directionalLight = createRotationMatrixX(timestamp * 0.03).multiplyVector(directionalLight);
                 // Draw direction of directional light. We can illustrate this by a bunch of arrows
                 renderer.drawPoint(p0, false, new Matrix(), "gray");
                 let lightIntensity = 0.006;  // Full intensity
@@ -744,89 +756,127 @@ const main = () => {
                     });
                 }
 
-                const updateRigidbody = () => {
-                    // const fixedStep = elapsed / 50;
-                    const fixedStep = 0.2;
-
-                    let rLocal = cubeRigidbodies[0].transform.
-                        getRotationMatrix().
-                        multiplyMatrix(createScaleMatrix(cubeRigidbodies[0].transform.scale)).
-                        multiplyVector(Vector.one.scale(0.5));
-                    // rLocal = cubeRigidbodies[0].transform.getRotationMatrix().multiplyVector(new Vector(-100, -100, 0));
-                    frameConstraint(
-                        cubeRigidbodies[0],
-                        rLocal,
-                        cubeRigidbodies[1].transform.position,
-                        fixedStep
-                    );
-                    // First, apply constraints
-                    // fooBar(cubeRigidbodies[0], cubeRigidbodies[1].transform.position, 10, fixedStep / 150);
-
-                    // Finally, integrate position
-
-                    // cubeRigidbodies[0].angularVelocity = new Vector(5000, 0, 0);
-                    // cubeRigidbodies[0].integratePosition(fixedStep);
-                    cubeRigidbodies[0].integratePositionPhysicallyAccurate(fixedStep);
-                    cubeTransforms[0].validateWorldMatrix();
-                    cubeModelMatrices[0] = cubeTransforms[0].toWorldMatrix();
-
-                    cubeRigidbodies[1].integratePositionPhysicallyAccurate(fixedStep);
-                    cubeTransforms[1].validateWorldMatrix();
-                    cubeModelMatrices[1] = cubeTransforms[1].toWorldMatrix();
-                    // const m = cubeTransforms[0].getRotationMatrix();
-                    // const mInv = Matrix.inverseMatrix3x3(m);
-                    // console.log(m.multiplyMatrix(mInv).isIdentity());
-                };
-                updateRigidbody();
-
-                cubeModelMatrices.forEach((modelMatrix, index) => drawCube(cube, modelMatrix, index));
-
-                // Run collision detection between selected and another entity
-                let selectedID = Number(document.getElementById("controlledEntity").value);
-                // Patch: selectedID to always be 0
-                selectedID = 0;
-                if (selectedID == -1) return;
-                const s1HalfMesh = cubeDcel;
-                const s1Matrix = cubeModelMatrices[selectedID];
-                const s2HalfMesh = cubeDcel;
-                const s2Matrix = cubeModelMatrices[1];
-
-                if (!document.getElementById("collisionControl").checked) {
-                    return;
-                }
-
-                const { result: separating, info } = CollisionDetection.SATEx(s1HalfMesh, s2HalfMesh, s1Matrix, s2Matrix);
-                renderer.drawText(renderer.canvas.width / 2 - 200, 60 - renderer.canvas.height / 2, `Separating: ${separating}\nDepth:${info ? info.depth : "N/A"}`, 15, "black", "bold 15px Arial");
-                if (!separating) {
-                    const contacts = createContacts(
-                        s1HalfMesh,
-                        s2HalfMesh,
-                        s1Matrix,
-                        s2Matrix,
-                        info,
-                        renderer,
-                        Number(document.getElementById("clipStepsCount").value)
-                    );
-                    if (!contacts || contacts.length == 0) return;
-                    // console.log(contacts);
-                    // Now we draw the contacts
+                const createContactIfColliding = (s1HalfMesh, s1Transform, s2HalfMesh, s2Transform) => {
+                    // Run collision detection between selected and another entity
+                    const s1Collider = new Sphere(s1Transform.position, s1Transform.scale.x);
+                    const s2Collider = new Sphere(s2Transform.position, s2Transform.scale.x);
+                    const result = Sphere.getContactPoints(s1Collider, s2Collider);
+                    const separating = !result;
+                    renderer.drawText(renderer.canvas.width / 2 - 200, 60 - renderer.canvas.height / 2,
+                        `Separating: ${separating}\nDepth:${result ? result.depth : "N/A"}`, 15, "black", "bold 15px Arial");
+                    if (!result) return null;
+                    const { contactA, contactB } = result;
                     renderer.drawPath(
-                        contacts,
+                        [contactA, contactB],
                         Matrix.identity,
                         "purple",
                         true,
                         true,
                         true
                     );
-                    // contacts.forEach(contact => {
-                    //     renderer.drawPoint(
-                    //         contact,
-                    //         false,
-                    //         Matrix.identity,
-                    //         "purple"
-                    //     )
-                    // });
+                    return result;
                 }
+
+                const createContactIfCollidingSATClip = (s1HalfMesh, s1Transform, s2HalfMesh, s2Transform) => {
+                    const s1Matrix = s1Transform.toWorldMatrix();
+                    const s2Matrix = s2Transform.toWorldMatrix();
+
+                    // Run collision detection between selected and another entity
+                    const { result: separating, info } = CollisionDetection.SATEx(s1HalfMesh, s2HalfMesh, s1Matrix, s2Matrix);
+                    renderer.drawText(renderer.canvas.width / 2 - 200, 60 - renderer.canvas.height / 2, `Separating: ${separating}\nDepth:${info ? info.depth : "N/A"}`, 15, "black", "bold 15px Arial");
+                    if (!separating) {
+                        const contacts = createContacts(
+                            s1HalfMesh,
+                            s2HalfMesh,
+                            s1Matrix,
+                            s2Matrix,
+                            info,
+                            renderer,
+                            Number(document.getElementById("clipStepsCount").value)
+                        );
+                        if (!contacts || contacts.length == 0) return null;
+                        // console.log(contacts);
+                        // Now we draw the contacts
+                        renderer.drawPath(
+                            contacts,
+                            Matrix.identity,
+                            "purple",
+                            true,
+                            true,
+                            true
+                        );
+                        // contacts.forEach(contact => {
+                        //     renderer.drawPoint(
+                        //         contact,
+                        //         false,
+                        //         Matrix.identity,
+                        //         "purple"
+                        //     )
+                        // });
+                        return { contacts, info };
+                    }
+                    return null;
+
+                }
+                const updateRigidbody = () => {
+                    // const fixedStep = elapsed / 50;
+                    const fixedStep = 0.2;
+
+                    // let rLocal = cubeRigidbodies[0].transform.
+                    //     getRotationMatrix().
+                    //     multiplyMatrix(createScaleMatrix(cubeRigidbodies[0].transform.scale)).
+                    //     multiplyVector(Vector.one.scale(0.5));
+                    // frameConstraint(
+                    //     cubeRigidbodies[0],
+                    //     rLocal,
+                    //     cubeRigidbodies[1].transform.position,
+                    //     fixedStep
+                    // );
+                    // First, apply constraints
+                    // fooBar(cubeRigidbodies[0], cubeRigidbodies[1].transform.position, 10, fixedStep / 150);
+
+                    const s1HalfMesh = cubeDcel;
+                    const s1Transform = cubeTransforms[0];
+                    const s2HalfMesh = cubeDcel;
+                    const s2Transform = cubeTransforms[1];
+                    // console.log(cubeRigidbodies[1]);
+                    let res = createContactIfColliding(s1HalfMesh, s1Transform, s2HalfMesh, s2Transform);
+                    // res = null;
+                    if (res) {
+                        // const { contacts, info } = res;
+                        // contactConstraint(
+                        //     cubeRigidbodies[0],
+                        //     cubeRigidbodies[1],
+                        //     contacts,
+                        //     info.normal,
+                        //     info.depth,
+                        //     fixedStep);
+
+                        contactConstraintForSphere(
+                            cubeRigidbodies[0],
+                            cubeRigidbodies[1],
+                            res.contactA,
+                            res.contactB,
+                            res.normal,
+                            res.depth,
+                            fixedStep
+                        );
+                    }
+                    // Finally, integrate position
+                    for (let i = 0; i < cubeTransforms.length; ++i) {
+                        cubeRigidbodies[i].integratePositionPhysicallyAccurate(fixedStep);
+                        cubeTransforms[i].validateWorldMatrix();
+                        cubeModelMatrices[i] = cubeTransforms[i].toWorldMatrix();
+                    }
+                }
+                updateRigidbody();
+
+                cubeModelMatrices.forEach((modelMatrix, index) => drawCube(cube, modelMatrix, index));
+
+                if (!document.getElementById("collisionControl").checked) {
+                    return;
+                }
+
             }
             updateFrame();
         }
