@@ -1,0 +1,52 @@
+
+
+/*
+Bugs:
+1. axis-angle rotation has inverted handedness
+2. scaling z seems off
+3. projection could also be a bit off, maybe camera is too close
+4. there is probably an issue where we divide by W when multiplying points
+5. seems like rotation implies position somehow? would have expected cubes to be at the same
+   point and just rotated, instead they are spread out. Seems like the scale doesn't really apply properly perhaps?
+6. Clip space clipping - seems like it doesn't work, or inversed.
+7. axis angle rotation - maybe has an issue? handedness weirdness + seems weird when rotating around arbitray axis
+
+Regarding:
+1. TODO - seems to be a bigger issue where handedness is just inverted in general, which leads to the confusion.
+2. seems to have been an issue with determineXY where i artifically introduced a bias which would accumulate
+3. solved, order should have been P*O and not O*P, has to do with major
+4. fixed, now done only when applying perspective
+5. Issue was related to order - we need to apply rotation *before* translation because we rotate around the origin
+6. Fixed. Issue was not checking w > 0, but it really did end up being inverted. Again due to handedness issue probably.
+7. Fixed. Again - rotation is around the origin so needs to happen before translation, or with a similarity transform T*R*T^-1
+*/
+
+
+/*
+TODOs:
+Sadly pretty much all those things require some refactoring so might as well just get on with it
+0. mouse picking!! We can either do it by raycasting or by mousepick buffer
+1. translate unity collision detection code to this repo, then add sequential impulse solver to this repo as well.
+TODOs low priority:
+1. grid rotation -- Done with grid mesh
+2. arcball should actually effect camera rotation and accumulate
+3. shadows?
+4. clipping
+
+Regarding shadows:
+Shadows are essentially just the projection of the nearest object
+unto the further object.
+*/
+
+/*
+We're working towards the following goal:
+A decent visualization of SAT for collision detection then clipping
+for contact generation.
+
+To achieve this goal:
+1. Mousepicking
+    -- would require raycasting + acceleration struct, or
+    -- stencil buffer testing <-- went this route for now but will implement more stuff later
+2. Selecting entity to move, then all controls will target effected entity
+3. Make sure all ported unity code works
+*/

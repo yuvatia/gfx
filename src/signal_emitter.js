@@ -1,6 +1,8 @@
 export class SignalEmitter {
-    constructor() {
+    constructor(name = "emitter") {
         this.listeners = [];
+        // Name is here for debug purposes
+        this.name = name;
     }
 
     waitForSignal() {

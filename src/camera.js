@@ -1,12 +1,46 @@
 import { Vector } from "./math.js";
-import { createTransformationMatrix } from "./affine.js";
+import { CreatePerspectiveProjection, CreateSymmetricOrthographicProjection, createTransformationMatrix } from "./affine.js";
+import { Transform } from "./transform.js";
+
+export class CameraSettings {
+    constructor() {
+        this.isOrthographic = false;
+
+        // Projection settings
+        this.far = 1000;
+        this.near = 0.01;
+        this.fov = 90;
+    }
+
+    static default = new CameraSettings();
+}
 
 export class Camera {
-    constructor() {
-        this.position = new Vector(0, 0, -2000);
-        this.rotation = new Vector(1, 0, 0);
+    constructor(
+        transform = new Transform(new Vector(0, 0, -1700), new Vector(1, 0, 0), new Vector(1, 1, 1)),
+        settings = CameraSettings.default) {
+        this.transform = transform;
         this.validateViewMatrix();
         this.installCameraControls();
+
+        this.settings = settings;
+
+        this.onResize(0, 0); // Placeholder for now
+    }
+
+    onResize(newWidth, newHeight) {
+        this.persProjection = CreatePerspectiveProjection(
+            this.settings.fov,
+            newWidth / newHeight,
+            this.settings.near,
+            this.settings.far
+        );
+        this.orthoProjection = CreateSymmetricOrthographicProjection(
+            this.settings.fov,
+            newWidth / newHeight,
+            this.settings.near,
+            this.settings.far
+        );
     }
 
     installCameraControls() {
@@ -14,33 +48,34 @@ export class Camera {
         document.addEventListener('keydown', (event) => {
             if (event.shiftKey) {
                 if (event.key === 'W') {
-                    this.adjustPosition(new Vector(0, 50, 0));
+                    this.transform.adjustPosition(new Vector(0, 50, 0));
                 } else if (event.key === 'S') {
-                    this.adjustPosition(new Vector(0, -50, 0));
+                    this.transform.adjustPosition(new Vector(0, -50, 0));
                 } else if (event.key === 'A') {
-                    this.adjustPosition(new Vector(-50, 0, 0));
+                    this.transform.adjustPosition(new Vector(-50, 0, 0));
                 } else if (event.key === 'D') {
-                    this.adjustPosition(new Vector(50, 0, 0));
+                    this.transform.adjustPosition(new Vector(50, 0, 0));
                 } else if (event.key === 'Z') {
-                    this.adjustPosition(new Vector(0, 0, 100));
+                    this.transform.adjustPosition(new Vector(0, 0, 100));
                 } else if (event.key === 'X') {
-                    this.adjustPosition(new Vector(0, 0, -100));
+                    this.transform.adjustPosition(new Vector(0, 0, -100));
                 }
+                this.validateViewMatrix();
             }
             // If ctrl is pressed then we use the same buttons but to adjust rotation
             if (event.altKey) {
                 if (event.key === 'w') {
-                    this.rotation = this.rotation.add(new Vector(1, 0, 0));
+                    this.transform.adjustRotation(new Vector(1, 0, 0));
                 } else if (event.key === 's') {
-                    this.rotation = this.rotation.add(new Vector(-1, 0, 0));
+                    this.transform.adjustRotation(new Vector(-1, 0, 0));
                 } else if (event.key === 'a') {
-                    this.rotation = this.rotation.add(new Vector(0, 1, 0));
+                    this.transform.adjustRotation(new Vector(0, 1, 0));
                 } else if (event.key === 'd') {
-                    this.rotation = this.rotation.add(new Vector(0, -1, 0));
+                    this.transform.adjustRotation(new Vector(0, -1, 0));
                 } else if (event.key === 'z') {
-                    this.rotation = this.rotation.add(new Vector(0, 0, 1));
+                    this.transform.adjustRotation(new Vector(0, 0, 1));
                 } else if (event.key === 'x') {
-                    this.rotation = this.rotation.add(new Vector(0, 0, -1));
+                    this.transform.adjustRotation(new Vector(0, 0, -1));
                 }
                 this.validateViewMatrix();
             }
@@ -48,18 +83,18 @@ export class Camera {
     }
 
     validateViewMatrix() {
-        this.viewMatrix = createTransformationMatrix(
-            new Vector(this.position.x, this.position.y, -this.position.z),
-            this.rotation
-        )
-    }
-
-    adjustPosition(positionDelta) {
-        this.position = this.position.add(positionDelta);
-        this.validateViewMatrix();
+        this.viewMatrix = this.transform.getViewMatrix();
     }
 
     getViewMatrix() {
         return this.viewMatrix;
+    }
+
+    getProjectionMatrix() {
+        if (this.settings.isOrthographic) {
+            return this.orthoProjection;
+        } else {
+            return this.persProjection;
+        }
     }
 }
