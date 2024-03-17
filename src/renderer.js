@@ -1,6 +1,8 @@
 import { Vector, Matrix } from "./math.js";
 import { Camera } from "./camera.js";
 import { createTranslationMatrix, createaAxisAngleRotationMatrix, CreatePerspectiveProjection, CreateSymmetricOrthographicProjection, invertTranslation } from "./affine.js";
+import { DirectionalLight, Material, MeshFilter, MeshRenderer } from "./components.js";
+import { Transform } from "./transform.js";
 
 export class RendererPrefrences {
     constructor() {
@@ -291,7 +293,7 @@ export class Renderer {
         overrideFillWithValue = null,
         applyPerspectiveDivision = true,
         drawPoints = false,
-        stencilID = this.stencilClearColors,
+        stencilID = null,
         outlineColor = null) {
         let fill = !this.preferences.wireframeMode;
         if (overrideFillWithValue === true || overrideFillWithValue === false) {
@@ -345,8 +347,8 @@ export class Renderer {
 
         this.stencilBufferCtx.beginPath();
         // Store entity ID in red channel
-        this.stencilBufferCtx.fillStyle = stencilID;
-        this.stencilBufferCtx.strokeStyle = stencilID;
+        this.stencilBufferCtx.fillStyle = stencilID || this.stencilClearColors;
+        this.stencilBufferCtx.strokeStyle = stencilID || this.stencilClearColors;
         this.depthBufferCtx.beginPath();
         this.depthBufferCtx.fillStyle = "black";
 
@@ -438,8 +440,155 @@ export class Renderer {
     }
 }
 
+class BasicShader {
+    constructor(renderer) {
+        this.scene = null;
+        this.renderer = renderer;
+    }
+
+    setActiveScene(scene) {
+        this.scene = scene;
+    }
+
+
+    submitLights(directionalLightSources) {
+        this.directionalLightSources = directionalLightSources;
+    }
+
+
+    drawMesh = (mesh, modelMatrix, material, entityId) => {
+        const renderPrefs = this.scene.getComponent(entityId, MeshRenderer) || MeshRenderer.default;
+        if (mesh.constructor.name === "Mesh") {
+            this.drawSimpleMesh(mesh, modelMatrix, material, entityId, renderPrefs);
+        } else if (mesh.constructor.name === "DCELRepresentation") {
+            this.drawMeshDCEL(mesh, modelMatrix, material, entityId, renderPrefs)
+        }
+    }
+
+    drawMeshDCEL = (mesh, modelMatrix, material, entityId, renderPrefs) => {
+        const colorNames = [
+            "blue",
+            "red",
+            "green",
+            "yellow",
+            "purple",
+            "pink"
+        ]
+
+        const drawFace = (face, modelMatrix, i, entityId) => {
+            const faceVerts = face.getVertices();
+            const faceNormal = face.GetFaceNormal();
+            // We now apply simple shading by taking faceNormal times directional light vector
+            // We use Lamber's cosine law to calculate the color
+            let worldNormal = modelMatrix.multiplyVector(faceNormal).normalize();
+
+            // TOOD support multiple light sources
+            let finalDiffuse =
+                material.faceColoring ? colorNames[i % colorNames.length] : material.diffuseColor;
+            if (this.renderer.preferences.shadingEnabled && renderPrefs.shading) {
+                for (let directionalLight of this.directionalLightSources) {
+                    const lightDirection = directionalLight.direction;
+                    const lightColor = directionalLight.color;
+                    const lightIntensity = directionalLight.intensity;
+
+                    let brightness = lightIntensity * Math.max(lightDirection.dotProduct(worldNormal), 0);
+                    const combinedColor = new Vector(
+                        lightColor.x * material.diffuseColor.x,
+                        lightColor.y * material.diffuseColor.y,
+                        lightColor.z * material.diffuseColor.z);
+
+                    // const diffuse = lightColor.multiply(brightness);
+                    finalDiffuse = combinedColor.scale(brightness); // TODO: account for own color
+                }
+            }
+            finalDiffuse =
+                typeof finalDiffuse === String ?
+                    finalDiffuse :
+                    `rgba(${finalDiffuse.x}, ${finalDiffuse.y}, ${finalDiffuse.z}, 1)`;
+
+            let outlineColor = finalDiffuse;
+            if (Number(document.getElementById("controlledEntity").value) === entityId) {
+                outlineColor = "red";
+            }
+
+            return this.renderer.drawPath(
+                faceVerts,
+                modelMatrix,
+                finalDiffuse,
+                !renderPrefs.wireframe,
+                true,
+                false,
+                renderPrefs.writeIdToStencil ? `rgba(${entityId}, ${entityId}, ${entityId}, 1)` : null,
+                outlineColor
+            );
+        };
+
+        mesh.faces.forEach((face, i) => {
+            drawFace(face, modelMatrix, i, entityId);
+        });
+    }
+
+    // SimpleMesh rendering
+    drawSimpleMesh = (mesh, modelMatrix, material, entityId, renderPrefs) => {
+        const verts = mesh.getVertices();
+        mesh.getFaces().forEach((indices, i) => {
+            const faceVerts = indices.map((index) => new Vector(...verts[index]));
+            const faceNormal = mesh.getFaceNormal(i);
+            // We now apply simple shading by taking faceNormal times directional light vector
+            // We use Lamber's cosine law to calculate the color
+            let worldNormal = modelMatrix.multiplyVector(faceNormal).normalize();
+
+            // let brightness = lightIntensity * Math.max(directionalLight.dotProduct(worldNormal), 0);
+            // const combinedColor = new Vector(
+            //     lightColor.x * cubeDiffuseColor.x,
+            //     lightColor.y * cubeDiffuseColor.y,
+            //     lightColor.z * cubeDiffuseColor.z);
+            // // const diffuse = lightColor.multiply(brightness);
+            // const diffuse = combinedColor.scale(brightness); // TODO: account for own color
+            // const faceColor = renderer.shadingEnabled ? `rgba(${diffuse.x}, ${diffuse.y}, ${diffuse.z}, 1)` : colorNames[i % colorNames.length];
+            const faceColor = "gray";
+            const outlineColor = "gray";
+            this.renderer.drawPath(
+                faceVerts,
+                modelMatrix,
+                faceColor,
+                !renderPrefs.wireframe,
+                true,
+                false,
+                renderPrefs.writeIdToStencil ? `rgba(${entityId}, ${entityId}, ${entityId}, 1)` : null,
+                outlineColor
+            );
+        });
+    }
+}
+
 export class RenderSystem {
     constructor() {
+    }
 
+    onFrameStart(scene, renderer, dt) {
+        renderer.start(dt);
+    }
+
+    renderScene(scene, renderer, dt) {
+        this.renderer = renderer;
+        this.shader = new BasicShader(this.renderer);
+        this.shader.setActiveScene(scene);
+
+        const frameRenderInfo = scene.getView(Transform, MeshFilter, Material).map(entId => {
+            const [transform, meshFilter, material] = [
+                scene.getComponent(entId, Transform),
+                scene.getComponent(entId, MeshFilter),
+                scene.getComponent(entId, Material)];
+            transform.validateWorldMatrix();
+            return [transform.toWorldMatrix(), meshFilter.meshRef, material, entId];
+        });
+
+        const directionalLightSources = scene.getView(DirectionalLight).map(entityId => scene.getComponent(entityId, DirectionalLight));
+        this.shader.submitLights(directionalLightSources);
+
+        frameRenderInfo.forEach((
+            [modelMatrix, meshRef, material, entId]) => this.shader.drawMesh(meshRef, modelMatrix, material, entId)
+        );
     }
 }

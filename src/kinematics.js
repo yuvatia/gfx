@@ -116,6 +116,10 @@ export class Rigidbody {
         const finalRotation = reOrthogonalizeRotation(R.addMatrix(deltaR));
         // this.transform.rotation = decomposeRotationXYZ(finalRotation);
         this.transform.overridenRotationMatrix = finalRotation;
+
+        // Apply some damping
+        // this.linearVelocity = this.linearVelocity.scale(0.9999);
+        // this.angularVelocity = this.angularVelocity.scale(0.9999);
     }
 
     integratePositionPhysicallyAccurateOld(dt) {
