@@ -43,43 +43,51 @@ export class Camera {
         );
     }
 
+
+    onKeyEvent(event) {
+        if (event.shiftKey) {
+            if (event.key === 'W') {
+                this.transform.adjustPosition(new Vector(0, 50, 0));
+            } else if (event.key === 'S') {
+                this.transform.adjustPosition(new Vector(0, -50, 0));
+            } else if (event.key === 'A') {
+                this.transform.adjustPosition(new Vector(-50, 0, 0));
+            } else if (event.key === 'D') {
+                this.transform.adjustPosition(new Vector(50, 0, 0));
+            } else if (event.key === 'Z') {
+                this.transform.adjustPosition(new Vector(0, 0, 100));
+            } else if (event.key === 'X') {
+                this.transform.adjustPosition(new Vector(0, 0, -100));
+            }
+            this.validateViewMatrix();
+        }
+        // If ctrl is pressed then we use the same buttons but to adjust rotation
+        if (event.altKey) {
+            if (event.key === 'w') {
+                this.transform.adjustRotation(new Vector(1, 0, 0));
+            } else if (event.key === 's') {
+                this.transform.adjustRotation(new Vector(-1, 0, 0));
+            } else if (event.key === 'a') {
+                this.transform.adjustRotation(new Vector(0, 1, 0));
+            } else if (event.key === 'd') {
+                this.transform.adjustRotation(new Vector(0, -1, 0));
+            } else if (event.key === 'z') {
+                this.transform.adjustRotation(new Vector(0, 0, 1));
+            } else if (event.key === 'x') {
+                this.transform.adjustRotation(new Vector(0, 0, -1));
+            }
+            this.validateViewMatrix();
+        }
+    }
+
+    onScroll(event) {
+        event.preventDefault();
+        this.transform.adjustPosition(new Vector(0, 0, event.deltaY));
+    };
+
     installCameraControls() {
         // Listen for button changes
-        document.addEventListener('keydown', (event) => {
-            if (event.shiftKey) {
-                if (event.key === 'W') {
-                    this.transform.adjustPosition(new Vector(0, 50, 0));
-                } else if (event.key === 'S') {
-                    this.transform.adjustPosition(new Vector(0, -50, 0));
-                } else if (event.key === 'A') {
-                    this.transform.adjustPosition(new Vector(-50, 0, 0));
-                } else if (event.key === 'D') {
-                    this.transform.adjustPosition(new Vector(50, 0, 0));
-                } else if (event.key === 'Z') {
-                    this.transform.adjustPosition(new Vector(0, 0, 100));
-                } else if (event.key === 'X') {
-                    this.transform.adjustPosition(new Vector(0, 0, -100));
-                }
-                this.validateViewMatrix();
-            }
-            // If ctrl is pressed then we use the same buttons but to adjust rotation
-            if (event.altKey) {
-                if (event.key === 'w') {
-                    this.transform.adjustRotation(new Vector(1, 0, 0));
-                } else if (event.key === 's') {
-                    this.transform.adjustRotation(new Vector(-1, 0, 0));
-                } else if (event.key === 'a') {
-                    this.transform.adjustRotation(new Vector(0, 1, 0));
-                } else if (event.key === 'd') {
-                    this.transform.adjustRotation(new Vector(0, -1, 0));
-                } else if (event.key === 'z') {
-                    this.transform.adjustRotation(new Vector(0, 0, 1));
-                } else if (event.key === 'x') {
-                    this.transform.adjustRotation(new Vector(0, 0, -1));
-                }
-                this.validateViewMatrix();
-            }
-        });
+        document.addEventListener('keydown', this.onKeyEvent.bind(this));
     }
 
     validateViewMatrix() {

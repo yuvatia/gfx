@@ -9,6 +9,7 @@ import { Rigidbody, contactConstraint, contactConstraintForSphere, fooBar, frame
 import { Sphere } from "./shape_queries.js";
 import { Renderer } from "./renderer.js";
 import { Transform } from "./transform.js";
+import { Scene } from "./scene.js";
 
 const bindSettingControls = (renderer) => {
     const settings = [
@@ -28,7 +29,7 @@ const bindSettingControls = (renderer) => {
                 if (event.currentTarget.type === 'checkbox') {
                     renderer.preferences[event.currentTarget.id] = event.currentTarget.checked;
                 } else if (event.currentTarget.type === 'number') {
-                    renderer.preferences[event.currentTarget.id] = Number(value);
+                    renderer.preferences[event.currentTarget.id] = Number(event.currentTarget.value || 0);
                 }
             });
             if (elementType === 'checkbox') {
@@ -65,6 +66,81 @@ export class Orchestrator {
     }
 }
 
+class MeshFilter {
+    meshRef = null;
+}
+
+class Material {
+    diffuseColor = "white";
+}
+
+class DirectionalLight {
+    color = "white";
+    intensity = 0.02;
+    direction = new Vector(0, 0.5, -1).normalize();
+}
+
+
+const setupScene = (scene, entitiesCount, canvas) => {
+    if (entitiesCount < 4) {
+        entitiesCount = 4;
+    }
+    scene.clear();
+
+    const cubeDcel = DCELRepresentation.fromSimpleMesh(makeIcosphere(2));
+    // const cubeDcel = DCELRepresentation.fromSimpleMesh(cube);
+
+    for (let i = 0; i < entitiesCount; ++i) {
+        let position = new Vector(
+            (2 * Math.random() - 1) * canvas.width,
+            (2 * Math.random() - 1) * canvas.height,
+            30 * (Math.random() * 2 - 1));
+        position.x = 350 * i;
+        position.y = 250 * i;
+        position.z = 0;
+
+        let rotation = new Vector(
+            360 * Math.random(),
+            360 * Math.random(),
+            360 * Math.random());
+        rotation = Vector.zero;
+        // if (i === 1) rotation = Vector.zero;
+        let scale = new Vector(70, 70, 70);
+        if (i === 0) scale = new Vector(80, 80, 80);
+        const entityId = scene.newEntity(`Entity ${i}`, new Transform(position, rotation, scale));
+        // Add mesh component
+        scene.addComponent(entityId, MeshFilter).meshRef = cubeDcel;
+        // Add material component
+        // Add rigidbody component
+        scene.addComponent(
+            entityId,
+            Rigidbody,
+            scene.getComponent(entityId, Transform), 20, Vector.zero, Vector.zero);
+        // Add collider component
+    }
+
+    // scene.getComponent(1, Rigidbody).linearVelocity = new Vector(-90, -100, 0);
+    // scene.getComponent(scene.getEntities()[1].id, Rigidbody).setMass(1000);
+    // scene.getComponent(0, Rigidbody).angularVelocity = new Vector(1, 0, 0);
+
+
+    // Stacking:
+    scene.getComponent(scene.getEntities()[1].id, Rigidbody).linearVelocity = new Vector(-50, 0, 0);
+    scene.getComponent(scene.getEntities()[0].id, Transform).position = scene.getComponent(scene.getEntities()[1].id, Transform).position.sub(new Vector(400, 0, 0));
+    scene.getComponent(scene.getEntities()[2].id, Transform).position = scene.getComponent(scene.getEntities()[1].id, Transform).position.sub(new Vector(650, 90, 0));
+    scene.getComponent(scene.getEntities()[3].id, Transform).position = scene.getComponent(scene.getEntities()[1].id, Transform).position.sub(new Vector(650, -200, 0));
+
+
+    // Create a light source
+    // shine towards Z axis
+    const lightEntity = scene.newEntity("Light");
+    const light = scene.addComponent(lightEntity, DirectionalLight);
+    light.direction = new Vector(0, 0.5, -1).normalize();
+    light.intensity = 0.02;
+    light.color = new Point(100, 255, 0, 1);
+
+}
+
 const main = () => {
     // Used to signal render event
     const signalEmitter = new SignalEmitter();
@@ -80,49 +156,17 @@ const main = () => {
 
     bindSettingControls(renderer);
 
-    // Initialize transforms
-    let cubeTransforms = [];
-    for (let i = 0; i < document.getElementById("entitiesCount").value; ++i) {
-        let position = new Vector(
-            (2 * Math.random() - 1) * canvas.width,
-            (2 * Math.random() - 1) * canvas.height,
-            30 * (Math.random() * 2 - 1));
-        position.x = 350 * i;
-        position.y = 250 * i;
-        position.z = 0;
+    const cube = new Cube();
 
-        let rotation = new Vector(
-            360 * Math.random(),
-            360 * Math.random(),
-            360 * Math.random());
-        rotation = Vector.zero;
-        // if (i === 1) rotation = Vector.zero;
-        let scale = new Vector(100, 100, 100);
-        if (i === 1) scale = new Vector(70, 70, 70);
-        cubeTransforms.push(
-            new Transform(
-                position,
-                rotation,
-                scale
-            )
-        )
-    }
-    let cubeModelMatrices = [];
-    for (let t of cubeTransforms) {
-        cubeModelMatrices.push(t.toWorldMatrix());
-    }
-    let cubeRigidbodies = [];
-    for (let t of cubeTransforms) {
-        cubeRigidbodies.push(new Rigidbody(t, 20, Vector.zero, Vector.zero));
-    }
-    // cubeRigidbodies[1].linearVelocity = new Vector(-90, -100, 0);
-    cubeRigidbodies[1].setMass(100);
-    // cubeRigidbodies[0].angularVelocity = new Vector(1, 0, 0);
+    const scene = new Scene();
+    let entitiesCount = document.getElementById("entitiesCount").value;
+    document.getElementById("entitiesCount").addEventListener("change", (event) => {
+        entitiesCount = Number(event.currentTarget.value || 0);
+        setupScene(scene, entitiesCount, canvas);
+    });
+    setupScene(scene, entitiesCount, canvas);
 
-
-    // Stacking:
-    cubeRigidbodies[1].linearVelocity = new Vector(-20, -100, 0);
-    cubeRigidbodies[0].transform.position = cubeRigidbodies[1].transform.position.sub(new Vector(0, 500, 0));
+    const grid = makeGrid();
 
     // Capture clicks on canvas
     canvas.addEventListener("click", async (e) => {
@@ -156,14 +200,8 @@ const main = () => {
         if (e.shiftKey) {
             // TODO handedness -> negation
             let delta = new Vector(-e.movementX, -e.movementY, 0);
-            let target = targetID == -1 ? renderer.camera.transform : cubeTransforms[targetID];
+            let target = targetID == -1 ? renderer.camera.transform : scene.getComponent(targetID, Transform);
             target.adjustPosition(delta);
-            if (targetID != -1) {
-                // TOOD unproject
-                // target.setPosition(renderer.mouseToCanvas(e.clientX, e.clientY).neg());
-
-                cubeModelMatrices[targetID] = target.toWorldMatrix();
-            }
         } else {
             // Arcball rotation
             let extraRotation = renderer.doArcballPrep(dragStart, dragStop);
@@ -171,6 +209,7 @@ const main = () => {
                 renderer.finalRotationMat = extraRotation;
             } else {
                 // TODO: invert/decompose
+                // TODO need to adjust rotation instead
                 cubeModelMatrices[targetID] = cubeModelMatrices[targetID].multiplyMatrix(extraRotation);
             }
         }
@@ -198,14 +237,8 @@ const main = () => {
     let p1 = new Point(4, 20, 0);
     let p2 = new Point(100, 30, 0);
 
-    const cube = new Cube();
-    const cubeDcel = DCELRepresentation.fromSimpleMesh(makeIcosphere(2));
-    // const cubeDcel = DCELRepresentation.fromSimpleMesh(cube);
-    const grid = makeGrid();
     // const cube = makeIcosphere(3);
     const verts = cube.getVertices();
-
-    // cubeModelMatrices = [cubeModelMatrices.pop()];
 
     const tick = (timestamp) => {
         if (!lastFrameTime) lastFrameTime = timestamp;
@@ -228,30 +261,10 @@ const main = () => {
                 signalEmitter.signalAll();
 
                 const time = timestamp * 0.001;
-                const frequency = 1;
-                const amplitude = 50;
-                const x = amplitude * Math.sin(2 * Math.PI * frequency * time);
 
-                let translationVector = new Vector(x, 0, 0);
-                let world = createTransformationMatrix(translationVector, new Vector(0, 0, x * 3), new Vector(10, 2, 1));
-
-                // renderer.drawStuff();
-                renderer.drawPath([p0, p1]);
-
-
-                // const cubeModelMatrix = 
-                // createRotationMatrixZ(-20).multiplyMatrix(
-                // createaAxisAngleRotationMatrix(new Vector(0, 0, 1), 20).multiplyMatrix(
-                //     createScaleMatrix(new Vector(1000, 1000, 1))
-                // ));
-                // shine towards Z axis
-                let directionalLight = new Vector(0, 0.5, -1).normalize();
                 // But actually move around in a circle
-                // directionalLight = createRotationMatrixX(timestamp * 0.03).multiplyVector(directionalLight);
-                // Draw direction of directional light. We can illustrate this by a bunch of arrows
-                renderer.drawPoint(p0, false, new Matrix(), "gray");
-                let lightIntensity = 0.02;  // Full intensity
-                let lightColor = new Point(100, 255, 0, 1); // pure white
+                // light.direction = createRotationMatrixX(timestamp * 0.03).multiplyVector(light.direction);
+
                 let cubeDiffuseColor = new Point(255, 70, 0, 1); // Red
 
                 const colorNames = [
@@ -262,7 +275,10 @@ const main = () => {
                     "purple",
                     "pink"
                 ]
-                const drawCube = (cube, modelMatrix, entityId) => {
+
+                const directionalLightSources = scene.getView(DirectionalLight).map(entityId => scene.getComponent(entityId, DirectionalLight));
+
+                const drawMesh = (mesh, modelMatrix, entityId) => {
                     const drawFace = (face, modelMatrix, i, entityId) => {
                         const faceVerts = face.getVertices();
                         const faceNormal = face.GetFaceNormal();
@@ -270,32 +286,44 @@ const main = () => {
                         // We use Lamber's cosine law to calculate the color
                         let worldNormal = modelMatrix.multiplyVector(faceNormal).normalize();
 
-                        let brightness = lightIntensity * Math.max(directionalLight.dotProduct(worldNormal), 0);
-                        const combinedColor = new Vector(
-                            lightColor.x * cubeDiffuseColor.x,
-                            lightColor.y * cubeDiffuseColor.y,
-                            lightColor.z * cubeDiffuseColor.z);
-                        // const diffuse = lightColor.multiply(brightness);
-                        const diffuse = combinedColor.scale(brightness); // TODO: account for own color
-                        const faceColor = renderer.preferences.shadingEnabled ? `rgba(${diffuse.x}, ${diffuse.y}, ${diffuse.z}, 1)` : colorNames[i % colorNames.length];
-                        let outlineColor = faceColor;
+                        // TOOD support multiple light sources
+                        let finalDiffuse = colorNames[i % colorNames.length];
+                        if (renderer.preferences.shadingEnabled) {
+                            for (let directionalLight of directionalLightSources) {
+                                const lightDirection = directionalLight.direction;
+                                const lightColor = directionalLight.color;
+                                const lightIntensity = directionalLight.intensity;
+
+                                let brightness = lightIntensity * Math.max(lightDirection.dotProduct(worldNormal), 0);
+                                const combinedColor = new Vector(
+                                    lightColor.x * cubeDiffuseColor.x,
+                                    lightColor.y * cubeDiffuseColor.y,
+                                    lightColor.z * cubeDiffuseColor.z);
+
+                                // const diffuse = lightColor.multiply(brightness);
+                                finalDiffuse = combinedColor.scale(brightness); // TODO: account for own color
+                                finalDiffuse = `rgba(${finalDiffuse.x}, ${finalDiffuse.y}, ${finalDiffuse.z}, 1)`;
+                            }
+                        }
+
+                        let outlineColor = finalDiffuse;
                         if (Number(document.getElementById("controlledEntity").value) === entityId) {
                             outlineColor = "red";
                         }
+
                         return renderer.drawPath(
                             faceVerts,
                             modelMatrix,
-                            faceColor,
+                            finalDiffuse,
                             null, // Don't force fill
                             true,
                             false,
                             `rgba(${entityId}, ${entityId}, ${entityId}, 1)`,
-                            // `rgba(${i * 30}, ${i * 30}, ${i * 10}, 1)`
                             outlineColor
                         );
                     };
 
-                    cubeDcel.faces.forEach((face, i) => {
+                    mesh.faces.forEach((face, i) => {
                         drawFace(face, modelMatrix, i, entityId);
                     });
 
@@ -327,10 +355,8 @@ const main = () => {
                     });
                 }
 
-                const createContactIfColliding = (s1HalfMesh, s1Transform, s2HalfMesh, s2Transform) => {
+                const createContactIfColliding = (s1Collider, s1Transform, s2Collider, s2Transform) => {
                     // Run collision detection between selected and another entity
-                    const s1Collider = new Sphere(s1Transform.position, s1Transform.scale.x);
-                    const s2Collider = new Sphere(s2Transform.position, s2Transform.scale.x);
                     const result = Sphere.getContactPoints(s1Collider, s2Collider);
                     const separating = !result;
                     renderer.drawText(renderer.canvas.width / 2 - 200, 60 - renderer.canvas.height / 2,
@@ -393,56 +419,73 @@ const main = () => {
                     // const fixedStep = elapsed / 50;
                     const fixedStep = 0.2;
 
-                    // let rLocal = cubeRigidbodies[0].transform.
+                    // let rLocal = rb1.transform.
                     //     getRotationMatrix().
-                    //     multiplyMatrix(createScaleMatrix(cubeRigidbodies[0].transform.scale)).
+                    //     multiplyMatrix(createScaleMatrix(rb1.transform.scale)).
                     //     multiplyVector(Vector.one.scale(0.5));
                     // frameConstraint(
-                    //     cubeRigidbodies[0],
+                    //     rb1,
                     //     rLocal,
-                    //     cubeRigidbodies[1].transform.position,
+                    //     rb2.transform.position,
                     //     fixedStep
                     // );
+
                     // First, apply constraints
-                    // fooBar(cubeRigidbodies[0], cubeRigidbodies[1].transform.position, 10, fixedStep / 150);
+                    // fooBar(rb1, rb2.transform.position, 10, fixedStep / 150);
 
-                    const s1HalfMesh = cubeDcel;
-                    const s1Transform = cubeTransforms[0];
-                    const s2HalfMesh = cubeDcel;
-                    const s2Transform = cubeTransforms[1];
-                    // console.log(cubeRigidbodies[1]);
-                    let res = createContactIfColliding(s1HalfMesh, s1Transform, s2HalfMesh, s2Transform);
-                    // res = null;
-                    if (res) {
-                        // const { contacts, info } = res;
-                        // contactConstraint(
-                        //     cubeRigidbodies[0],
-                        //     cubeRigidbodies[1],
-                        //     contacts,
-                        //     info.normal,
-                        //     info.depth,
-                        //     fixedStep);
+                    const allRigidbodies = scene.getComponentView(Rigidbody);
+                    // Narrow-phase
+                    for (let [ent1Id, [rb1]] of allRigidbodies) {
+                        for (let [ent2Id, [rb2]] of allRigidbodies) {
+                            if (ent2Id == ent1Id) {
+                                break;
+                            }
 
-                        contactConstraintForSphere(
-                            cubeRigidbodies[0],
-                            cubeRigidbodies[1],
-                            res.contactA,
-                            res.contactB,
-                            res.normal,
-                            res.depth,
-                            fixedStep
-                        );
+                            const s1Transform = rb1.transform;
+                            const s2Transform = rb2.transform;
+                            const s1Collider = new Sphere(s1Transform.position, s1Transform.scale.x);
+                            const s2Collider = new Sphere(s2Transform.position, s2Transform.scale.x);
+                            let res = createContactIfColliding(s1Collider, s1Transform, s2Collider, s2Transform);
+                            // res = null;
+                            if (res) {
+                                // const { contacts, info } = res;
+                                // contactConstraint(
+                                //     rb1,
+                                //     rb2,
+                                //     contacts,
+                                //     info.normal,
+                                //     info.depth,
+                                //     fixedStep);
+
+                                contactConstraintForSphere(
+                                    rb1,
+                                    rb2,
+                                    res.contactA,
+                                    res.contactB,
+                                    res.normal,
+                                    res.depth,
+                                    fixedStep
+                                );
+                            }
+
+                        }
                     }
+
                     // Finally, integrate position
-                    for (let i = 0; i < cubeTransforms.length; ++i) {
-                        cubeRigidbodies[i].integratePositionPhysicallyAccurate(fixedStep);
-                        cubeTransforms[i].validateWorldMatrix();
-                        cubeModelMatrices[i] = cubeTransforms[i].toWorldMatrix();
+                    for (let entityId of scene.getView(Rigidbody)) {
+                        const rbody = scene.getComponent(entityId, Rigidbody);
+                        rbody.integratePositionPhysicallyAccurate(fixedStep);
+                        rbody.transform.validateWorldMatrix();
                     }
                 }
                 updateRigidbody();
 
-                cubeModelMatrices.forEach((modelMatrix, index) => drawCube(cube, modelMatrix, index));
+                const cubeModelMatricesAndMeshes = scene.getView(Transform, MeshFilter).map(entId => {
+                    const [transform, meshFilter] = [scene.getComponent(entId, Transform), scene.getComponent(entId, MeshFilter)];
+                    transform.validateWorldMatrix();
+                    return [transform.toWorldMatrix(), meshFilter.meshRef, entId];
+                });
+                cubeModelMatricesAndMeshes.forEach(([modelMatrix, meshRef, entId]) => drawMesh(meshRef, modelMatrix, entId));
 
                 if (!document.getElementById("collisionControl").checked) {
                     return;

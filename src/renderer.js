@@ -45,10 +45,7 @@ export class Renderer {
         window.addEventListener("resize", this.onResize.bind(this));
 
         // Listen for scroll events
-        this.canvas.addEventListener('wheel', (event) => {
-            event.preventDefault();
-            this.camera.transform.adjustPosition(new Vector(0, 0, event.deltaY));
-        });
+        this.canvas.addEventListener('wheel', this.camera.onScroll.bind(this.camera));
 
     }
 

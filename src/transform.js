@@ -2,7 +2,7 @@ import { createTransformationMatrix, createTranslationMatrix, createScaleMatrix,
 import { Vector } from "./math.js";
 
 export class Transform {
-    constructor(position, rotation, scale) {
+    constructor(position = Vector.zero, rotation = Vector.zero, scale = Vector.one) {
         this.position = position;
         this.rotation = rotation;
         this.scale = scale;
@@ -10,6 +10,10 @@ export class Transform {
         this.overridenRotationMatrix = null;
 
         this.validateWorldMatrix();
+    }
+
+    clone() {
+        return new Transform(this.position.clone(), this.rotation.clone(), this.scale.clone());
     }
 
     validateWorldMatrix() {
