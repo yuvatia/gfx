@@ -116,7 +116,9 @@ export function invertTranslation(translationMatrix) {
     return inverted;
 }
 
-export function createTransformationMatrix(translationVector, rotationEuler = new Point(0, 0, 0), scaleVector = new Point(1, 1, 1)) {
+export function createTransformationMatrix(translationVector, 
+    rotationEuler = new Vector(0, 0, 0), 
+    scaleVector = new Vector(1, 1, 1)) {
     const translation = createTranslationMatrix(translationVector);
     const rotationXYZ = createRotationMatrixXYZ(...rotationEuler.toArray());
     const scale = createScaleMatrix(scaleVector);

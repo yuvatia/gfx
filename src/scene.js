@@ -167,30 +167,6 @@ export class Scene {
         return this.getEntities().filter(entity => entity.hasAllOf(...components)).map(ent => {
             return [ent.id, components.map(comp => ent.components[comp.name])];
         });
-    
+
     }
-}
-
-const example = () => {
-    class ExampleComponent { };
-    const scene = new Scene();
-    const cubeA = scene.newEntity("CubeA");
-    const comp = scene.addComponent(cubeA, ExampleComponent);
-    scene.removeComponent(cubeA, ExampleComponent);
-    scene.destroyEntity(cubeA);
-    const sphere = scene.newEntity("Sphere");
-
-    const subView = scene.getView(ExampleComponent);
-    for (const entity of subView) {
-        console.log(entity.id);
-    }
-
-    class MeshFilter { meshRef; };
-    const rendererView = scene.getView(Transform, MeshFilter);
-    for (const entity of rendererView) {
-        // Do render stuff
-    }
-
-    const phyicsView = scene.getView(Rigidbody);
-    // then collect contact constraints
 }

@@ -24,7 +24,6 @@ export class Camera {
         settings = CameraSettings.default) {
         this.transform = transform;
         this.validateViewMatrix();
-        this.installCameraControls();
 
         this.settings = settings;
 
@@ -46,8 +45,7 @@ export class Camera {
         );
     }
 
-
-    onKeyEvent(event) {
+    onKeydownEvent(event) {
         if (event.shiftKey) {
             if (event.key === 'W') {
                 this.transform.adjustPosition(new Vector(0, 50, 0));
@@ -83,15 +81,10 @@ export class Camera {
         }
     }
 
-    onScroll(event) {
+    onMouseScroll(event) {
         event.preventDefault();
         this.transform.adjustPosition(new Vector(0, 0, event.deltaY));
     };
-
-    installCameraControls() {
-        // Listen for button changes
-        document.addEventListener('keydown', this.onKeyEvent.bind(this));
-    }
 
     validateViewMatrix() {
         this.viewMatrix = this.transform.getViewMatrix();

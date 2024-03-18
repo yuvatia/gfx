@@ -68,7 +68,7 @@ export class Sphere {
         return direction;
     }
 
-    static getContactPoints(s1, s2) {
+    static getSphereSphereManifold(s1, s2) {
         if (!s1.intersects(s2)) {
             return null;
         }

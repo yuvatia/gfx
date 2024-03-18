@@ -42,13 +42,7 @@ export class Renderer {
         this.finalRotationMat = new Matrix();
 
 
-        this.onResize();
-
-        window.addEventListener("resize", this.onResize.bind(this));
-
-        // Listen for scroll events
-        this.canvas.addEventListener('wheel', this.camera.onScroll.bind(this.camera));
-
+        this.onViewportResize();
     }
 
     worldToEye(point) {
@@ -139,7 +133,7 @@ export class Renderer {
         return rotationMat;
     }
 
-    onResize() {
+    onViewportResize() {
         // No need to resize canvas since responsiveness is guaranteed
         this.canvas.width = window.innerWidth;
         this.canvas.height = window.innerHeight;

@@ -1,5 +1,7 @@
-import { Rigidbody, contactConstraintForSphere } from "./kinematics.js";
+import { CollisionDetection } from "./collision.js";
+import { BoxCollider, FollowConstraint, Rigidbody, contactConstraint, contactConstraintForSphere, resolveFollowConstraint } from "./kinematics.js";
 import { Matrix } from "./math.js";
+import { createContacts } from "./sat_contact_creation.js";
 import { Sphere } from "./shape_queries.js";
 
 
@@ -10,7 +12,7 @@ const createContactIfColliding = (
     s2Transform,
     renderer) => {
     // Run collision detection between selected and another entity
-    const result = Sphere.getContactPoints(s1Collider, s2Collider);
+    const result = Sphere.getSphereSphereManifold(s1Collider, s2Collider);
     const separating = !result;
     renderer.drawText(renderer.canvas.width / 2 - 200, 60 - renderer.canvas.height / 2,
         `Separating: ${separating}\nDepth:${result ? result.depth : "N/A"}`, 15, "black", "bold 15px Arial");
@@ -82,31 +84,28 @@ export class PhysicsSystem {
     preferences = new PhysicsPreferences();
 
     onFixedStep = (scene, debugRenderer) => {
-        // validate active constraints & collect new ones
+        const fixedStep = 0.2;
 
+        // validate active constraints & collect new ones
+        // Collect all follow constraints
+        const allFollowConstraints = scene.getComponentView(FollowConstraint);
         // apply forces
 
         // update velocity
 
         // solve constraints
+        allFollowConstraints.forEach(([entId, [constraint]]) => {
+            const tethered = constraint.rb1;
+            const tether = constraint.rb2;
+            const r = tethered.transform.toWorldMatrix().multiplyVector(constraint.rb1Anchor);
+            resolveFollowConstraint(
+                tethered,
+                r,
+                tether.transform.position,
+                fixedStep);
+        })
 
         // update positions
-
-        const fixedStep = 0.2;
-
-        // let rLocal = rb1.transform.
-        //     getRotationMatrix().
-        //     multiplyMatrix(createScaleMatrix(rb1.transform.scale)).
-        //     multiplyVector(Vector.one.scale(0.5));
-        // frameConstraint(
-        //     rb1,
-        //     rLocal,
-        //     rb2.transform.position,
-        //     fixedStep
-        // );
-
-        // First, apply constraints
-        // fooBar(rb1, rb2.transform.position, 10, fixedStep / 150);
 
         const allRigidbodies = scene.getComponentView(Rigidbody);
         // Narrow-phase
@@ -118,27 +117,15 @@ export class PhysicsSystem {
 
                 const s1Transform = rb1.transform;
                 const s2Transform = rb2.transform;
-                const s1Collider = new Sphere(s1Transform.position, s1Transform.scale.x);
-                const s2Collider = new Sphere(s2Transform.position, s2Transform.scale.x);
-                let res = createContactIfColliding(
-                    s1Collider,
-                    s1Transform,
-                    s2Collider,
-                    s2Transform,
-                    debugRenderer
-                );
 
-                // res = null;
-                if (res) {
-                    // const { contacts, info } = res;
-                    // contactConstraint(
-                    //     rb1,
-                    //     rb2,
-                    //     contacts,
-                    //     info.normal,
-                    //     info.depth,
-                    //     fixedStep);
-
+                // sphere vs sphere
+                let res = null;
+                if (rb1.getColliderType() === Rigidbody.ColliderType.SPHERE
+                    && rb2.getColliderType() === Rigidbody.ColliderType.SPHERE) {
+                    const s1Collider = new Sphere(s1Transform.position, s1Transform.scale.x);
+                    const s2Collider = new Sphere(s2Transform.position, s2Transform.scale.x);
+                    res = Sphere.getSphereSphereManifold(s1Collider, s2Collider);
+                    if (!res) continue;
                     contactConstraintForSphere(
                         rb1,
                         rb2,
@@ -148,8 +135,26 @@ export class PhysicsSystem {
                         res.depth,
                         fixedStep
                     );
+                } else {
+                    // Assume box vs box or mesh vs mesh
+                    const rb1ColliderMesh = rb1.collider.meshRef || new BoxCollider().meshRef;
+                    const rb2ColliderMesh = rb2.collider.meshRef || new BoxCollider().meshRef;
+                    res = createContactIfCollidingSATClip(
+                        rb1ColliderMesh,
+                        rb1.transform,
+                        rb2ColliderMesh,
+                        rb2.transform,
+                        debugRenderer);
+                    if (!res) continue;
+                    const { contacts, info } = res;
+                    contactConstraint(
+                        rb1,
+                        rb2,
+                        contacts,
+                        info.normal,
+                        info.depth,
+                        fixedStep);
                 }
-
             }
         }
 

@@ -1,17 +1,15 @@
 import { Cube, Icosahedron, Mesh, makeGrid, makeIcosphere, makeRect } from "./geometry.js";
 import { SignalEmitter } from "./signal_emitter.js";
 import { Point, Vector, Matrix } from "./math.js"
-import { createTransformationMatrix, createRotationMatrixX, createRotationMatrixY, createRotationMatrixZ, createScaleMatrix, decomposeRotationXYZ } from "./affine.js";
 import { DCELRepresentation } from "./halfmesh.js";
-import { CollisionDetection } from "./collision.js";
-import { createContacts } from "./sat_contact_creation.js";
-import { Rigidbody, contactConstraint, contactConstraintForSphere, fooBar, frameConstraint } from "./kinematics.js";
-import { Sphere } from "./shape_queries.js";
-import { RenderSystem, Renderer } from "./renderer.js";
+import { BoxCollider, FollowConstraint, Rigidbody, SphereCollider } from "./kinematics.js";
+import { RenderSystem, Renderer, RendererPrefrences } from "./renderer.js";
 import { Transform } from "./transform.js";
 import { PhysicsSystem } from "./physics.js";
 import { MeshFilter, Material, MeshRenderer, DirectionalLight } from "./components.js";
 import { Director } from "./Director.js";
+import { Camera } from "./camera.js";
+import { MouseController } from "./MouseController.js";
 
 const bindSettingControls = (renderer) => {
     const settings = [
@@ -50,8 +48,9 @@ const setupScene = (scene, entitiesCount, canvas) => {
     }
     scene.clear();
 
-    const cubeDcel = DCELRepresentation.fromSimpleMesh(makeIcosphere(2));
-    // const cubeDcel = DCELRepresentation.fromSimpleMesh(cube);
+    const followDemo = true;
+
+    const cubeDcel = followDemo ? DCELRepresentation.fromSimpleMesh(new Cube()) : DCELRepresentation.fromSimpleMesh(makeIcosphere(2));
 
     // Grid has to be first since we don't have any Z-ordering or perspective tricks
     const grid = DCELRepresentation.fromSimpleMesh(makeGrid());
@@ -95,20 +94,10 @@ const setupScene = (scene, entitiesCount, canvas) => {
         scene.addComponent(
             entityId,
             Rigidbody,
-            scene.getComponent(entityId, Transform), 20, Vector.zero, Vector.zero);
+            scene.getComponent(entityId, Transform), 20, Vector.zero, Vector.zero,
+            followDemo ? new BoxCollider() : new SphereCollider());
         // Add collider component
     }
-
-    // scene.getComponent(1, Rigidbody).linearVelocity = new Vector(-90, -100, 0);
-    // scene.getComponent(scene.getEntities()[1].id, Rigidbody).setMass(1000);
-    // scene.getComponent(0, Rigidbody).angularVelocity = new Vector(1, 0, 0);
-
-
-    // Stacking:
-    scene.getComponent(scene.getEntities()[1].id, Rigidbody).linearVelocity = new Vector(-50, 0, 0);
-    scene.getComponent(scene.getEntities()[0].id, Transform).position = scene.getComponent(scene.getEntities()[1].id, Transform).position.sub(new Vector(400, 0, 0));
-    scene.getComponent(scene.getEntities()[2].id, Transform).position = scene.getComponent(scene.getEntities()[1].id, Transform).position.sub(new Vector(650, 90, 0));
-    scene.getComponent(scene.getEntities()[3].id, Transform).position = scene.getComponent(scene.getEntities()[1].id, Transform).position.sub(new Vector(650, -200, 0));
 
 
     // Create a light source
@@ -119,6 +108,30 @@ const setupScene = (scene, entitiesCount, canvas) => {
     light.intensity = 0.012;
     light.color = new Point(100, 255, 0, 1);
 
+    const rbodiesView = scene.getComponentView(Rigidbody);
+    const [, [rb1]] = rbodiesView[0];
+    const [, [rb2]] = rbodiesView[1];
+    const [, [rb3]] = rbodiesView[2];
+    const [, [rb4]] = rbodiesView[3];
+
+    if (followDemo) {
+        // rb2.linearVelocity = new Vector(-90, -100, 0);
+        // rb0.setMass(1000);
+        // rb1.angularVelocity = new Vector(1, 0, 0);
+
+        // Create a follow constraint
+        const followEntId = scene.newEntity("FollowConstraint");
+        scene.addComponent(followEntId, FollowConstraint, rb1, rb2, Vector.one.scale(0.5));
+
+        return;
+    }
+
+    // Collision demo
+
+    rb1.linearVelocity = new Vector(-50, 0, 0);
+    rb1.transform.position = rb2.transform.position.sub(new Vector(400, 0, 0));
+    rb3.transform.position = rb2.transform.position.sub(new Vector(650, 90, 0));
+    rb4.transform.position = rb2.transform.position.sub(new Vector(650, -200, 0));
 }
 
 const main = () => {
@@ -130,15 +143,18 @@ const main = () => {
     const stencil = document.getElementById("stencil");
     const depth = document.getElementById("depth");
 
+    const sceneCamera = new Camera();
     const renderer = new Renderer(
-        canvas, stencil, depth
+        canvas, stencil, depth, RendererPrefrences.default, sceneCamera
     );
 
     const director = new Director();
     director.setRenderer(renderer);
     director.registerSystem(new PhysicsSystem());
+    director.registerSystem(sceneCamera);
     director.registerSystem(new RenderSystem(renderer));
-
+    director.registerSystem(new MouseController(renderer));
+    director.raiseOnSetActiveScene();
     bindSettingControls(renderer);
 
     const scene = director.getScene();
@@ -148,66 +164,6 @@ const main = () => {
         setupScene(scene, entitiesCount, canvas);
     });
     setupScene(scene, entitiesCount, canvas);
-
-    // Capture clicks on canvas
-    canvas.addEventListener("click", async (e) => {
-        // Mousepicking
-        if (e.ctrlKey) {
-            const stencilPixelValue = renderer.pickBufferPixelAtPosition(Renderer.BufferType.STENCIL, e.clientX, e.clientY);
-            console.log(`${stencilPixelValue}`);
-            // map 255 to -1 === camera
-            const selectedEntity = stencilPixelValue[2] != 255 ? stencilPixelValue[2] : -1;
-            document.getElementById("controlledEntity").value = `${selectedEntity}`;
-        }
-        // while (1) {
-        //     await signalEmitter.waitForSignal();
-        //     const hitPoint = renderer.mouseToCanvas(e.clientX, e.clientY);
-        //     renderer.drawPoint2D(hitPoint, "red", true);
-        // }
-    });
-
-    // Capture drag start and stop then draw path from start to stop
-    let dragStart = null;
-    canvas.addEventListener("mousedown", (e) => {
-        dragStart = renderer.mouseToCanvas(e.clientX, e.clientY);
-    });
-    canvas.addEventListener("mousemove", async (e) => {
-        if (!dragStart) return;
-
-        const dragStop = renderer.mouseToCanvas(e.clientX, e.clientY);
-
-        let targetID = document.getElementById("controlledEntity").value;
-        // If the shift key is also pressed, treat it as translating the camera
-        if (e.shiftKey) {
-            // TODO handedness -> negation
-            let delta = new Vector(-e.movementX, -e.movementY, 0);
-            let target = targetID == -1 ? renderer.camera.transform : scene.getComponent(targetID, Transform);
-            target.adjustPosition(delta);
-        } else {
-            // Arcball rotation
-            let extraRotation = renderer.doArcballPrep(dragStart, dragStop);
-            if (targetID == -1) {
-                renderer.finalRotationMat = extraRotation;
-            } else {
-                // TODO: invert/decompose
-                // TODO need to adjust rotation instead
-                cubeModelMatrices[targetID] = cubeModelMatrices[targetID].multiplyMatrix(extraRotation);
-            }
-        }
-
-        // await signalEmitter.waitForSignal();
-        // renderer.drawPath2D([dragStart, dragStop]);
-    });
-    canvas.addEventListener("mouseup", async (e) => {
-        let myStart = dragStart
-        dragStart = null;
-        const dragStop = renderer.mouseToCanvas(e.clientX, e.clientY);
-        // while (1) {
-        //     await signalEmitter.waitForSignal();
-        //     renderer.drawPath2D([myStart, dragStop]);
-        // }
-    });
-
 
     let lastFrameTime = null;
     const fps = 60;

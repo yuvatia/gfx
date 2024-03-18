@@ -1,4 +1,6 @@
 import { createScaleMatrix, decomposeRotationXYZ, invertRotation, reOrthogonalizeRotation } from "./affine.js";
+import { Cube } from "./geometry.js";
+import { DCELRepresentation } from "./halfmesh.js";
 import { Matrix, Vector } from "./math.js";
 import { Contact } from "./oven/contact.js";
 import { createContacts } from "./sat_contact_creation.js";
@@ -64,8 +66,20 @@ export const getInverseCubeInertiaTensorFromTransform = (transform, mass) => {
     return rotationMatrix.multiplyMatrix(inverseI0).multiplyMatrix(invertedRotationMatrix);
 }
 
+export class SphereCollider {
+    meshRef = null;
+}
+
+export class BoxCollider {
+    meshRef = DCELRepresentation.fromSimpleMesh(new Cube());
+}
+
+export class MeshCollider {
+    meshRef = null;
+}
+
 export class Rigidbody {
-    constructor(transform, mass, linearVelocity = null, angularVelocity = null) {
+    constructor(transform, mass, linearVelocity = null, angularVelocity = null, collider = null) {
         this.transform = transform;
         this.mass = mass;
         this.massInv = mass === 0 ? 0 : 1 / mass;
@@ -76,12 +90,35 @@ export class Rigidbody {
         this.friction = 2;
         this.restitution = 0;
 
-        this.isSphere = true;
+        this.collider = collider;
+    }
+
+    static ColliderType = {
+        SPHERE: "sphere",
+        BOX: "box",
+        MESH: "mesh"
+    };
+
+    getColliderType() {
+        if (this.collider === null || this.collider.constructor === undefined) {
+            return ColliderType.BOX;
+        }
+        switch (this.collider.constructor.name) {
+            case "BoxCollider":
+                return Rigidbody.ColliderType.BOX;
+            case "SphereCollider":
+                return Rigidbody.ColliderType.SPHERE;
+            case "MeshCollider":
+                return Rigidbody.ColliderType.MESH;
+        }
     }
 
     getInverseInertiaTensor() {
-        if (this.isSphere) {
-            return getInverseSphereInertiaTensorFromTransform(this.transform, this.mass);
+        switch (this.getColliderType()) {
+            case Rigidbody.ColliderType.SPHERE:
+                return getInverseSphereInertiaTensorFromTransform(this.transform, this.mass);
+            default:
+                break;
         }
         return getInverseCubeInertiaTensorFromTransform(this.transform, this.mass);
     }
@@ -181,7 +218,7 @@ export const fooBar = (rb1, p0, dt) => {
     // rb1.transform.position = rb1.transform.position.add(rb1.linearVelocity.scale(dt));
 }
 
-export const frameConstraint = (rb, r, p, dt) => {
+export const resolveFollowConstraint = (rb, r, p, dt) => {
     const Beta = 0.3;
 
     // Apply gravity but *only* on this body - todo later add opt in flag for gravity in Rigidbody
@@ -280,4 +317,17 @@ export const frameConstraint1Broken = (rb, r, p, dt) => {
     // damping
     rb.linearVelocity = rb.linearVelocity.scale(0.98);
     rb.angularVelocity = rb.angularVelocity.scale(0.98);
+}
+
+
+export class FollowConstraint {
+    rb1 = new Rigidbody();  // tethered
+    rb2 = new Rigidbody();  // tether
+    rb1Anchor = Vector.zero; // in rb1 local space
+
+    constructor(rb1 = null, rb2 = null, rb1Anchor = Vector.zero) {
+        this.rb1 = rb1;
+        this.rb2 = rb2;
+        this.rb1Anchor = rb1Anchor;
+    }
 }
