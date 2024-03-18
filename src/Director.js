@@ -19,7 +19,7 @@ export class Director {
         const targetCanvas = this.renderer.canvas;
 
         targetCanvas.addEventListener('wheel', this.onMouseScroll.bind(this));
-        targetCanvas.addEventListener('keydown', this.onKeydownEvent.bind(this));
+        document.addEventListener('keydown', this.onKeydownEvent.bind(this));
         targetCanvas.addEventListener('click', this.onMouseClick.bind(this));
         targetCanvas.addEventListener('mouseup', this.onMouseUp.bind(this));
         targetCanvas.addEventListener('mousedown', this.onMouseDown.bind(this));

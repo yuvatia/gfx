@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Unity-style Editor</title>
+<style>
+    /* General styles */
+    * {
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+    }
+
+    /* Styles for the main editor */
+    #editor {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 20px;
+    }
+
+    #canvas-container {
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        margin-top: 20px;
+    }
+
+    #scene-canvas {
+        width: 80%;
+        max-width: 600px;
+        height: 300px; /* Default height */
+        background-color: red; /* Placeholder color */
+    }
+
+    /* Entity and component styles */
+    .entity {
+        width: 100%;
+        border: 1px solid #ccc;
+        margin-bottom: 10px;
+        padding: 10px;
+        display: flex;
+        flex-wrap: wrap;
+    }
+
+    .component {
+        width: calc(50% - 10px);
+        margin: 5px;
+    }
+
+    /* Settings modal styles */
+    #settings-modal {
+        display: block;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 999;
+    }
+
+    .modal-content {
+        background: #fff;
+        width: 50%;
+        max-width: 500px;
+        margin: 20% auto;
+        padding: 20px;
+        border-radius: 5px;
+        position: relative;
+    }
+
+    .modal-close {
+        cursor: pointer;
+        position: absolute;
+        top: 5px;
+        right: 5px;
+    }
+
+    /* Toggle off button styles */
+    #toggle-off {
+        position: absolute;
+        bottom: 10px;
+        right: 10px;
+        padding: 5px 10px;
+        background-color: #007bff;
+        color: #fff;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+    }
+
+    #toggle-off:hover {
+        background-color: #0056b3;
+    }
+
+    /* Media queries for responsiveness */
+    @media screen and (max-width: 768px) {
+        .component {
+            width: calc(100% - 10px);
+        }
+    }
+</style>
+</head>
+<body>
+<div id="editor">
+    <h1>Unity-style Editor</h1>
+    <button onclick="toggleSettings()">Toggle Off</button>
+    <div id="entities"></div>
+    <div id="canvas-container">
+        <canvas id="scene-canvas"></canvas>
+    </div>
+</div>
+
+<!-- Settings Modal -->
+<div id="settings-modal" style="display: none;">
+    <div class="modal-content">
+        <span class="modal-close" onclick="toggleSettings()">X</span>
+        <h2>System Preferences</h2>
+        <div id="systems-list"></div>
+        <div id="preferences"></div>
+    </div>
+</div>
+
+<script>
+    // Mock functions
+    const scene = {
+        getEntities: () => ['entity1', 'entity2'],
+        getComponent: (id, type) => ({ type: type, value: 'SomeValue' }),
+        addComponent: (id, type) => console.log(`Added ${type} component to entity ${id}`),
+        addEntity: (name) => console.log(`Added entity: ${name}`),
+        destroyEntity: (id) => console.log(`Destroyed entity: ${id}`),
+        getSystems: () => [
+            ['Physics', { gravity: { x: 0, y: -9.81, z: 0 }, timestep: 0.02 }],
+            ['Graphics', { antiAliasing: true, bloom: false, shadows: true }],
+            ['Audio', { volume: 0.5, spatialization: true }]
+        ],
+        preferences: {
+            physicsEnabled: true,
+            shadowsEnabled: false,
+            qualityLevel: 2
+        }
+    };
+
+    // Populate systems list in settings modal
+    const systemsList = document.getElementById('systems-list');
+    scene.getSystems().forEach(system => {
+        const [systemName, _] = system;
+        const systemButton = document.createElement('button');
+        systemButton.textContent = systemName;
+        systemButton.addEventListener('click', () => {
+            openPreferences(system);
+        });
+        systemsList.appendChild(systemButton);
+    });
+
+    // Open preferences for selected system
+    function openPreferences(system) {
+        const [systemName, preferencesObj] = system;
+        const preferencesContainer = document.getElementById('preferences');
+        preferencesContainer.innerHTML = `<h3>${systemName} Preferences</h3>`;
+        preferencesContainer.innerHTML += '<hr>';
+        // Dynamically populate preferences
+        for (const pref in preferencesObj) {
+            const preferenceDiv = document.createElement('div');
+            preferenceDiv.innerHTML = `<label>${pref}: </label>`;
+            const input = document.createElement('input');
+            input.type = 'checkbox'; // Assuming all preferences are boolean for simplicity
+            input.checked = preferencesObj[pref];
+            input.addEventListener('change', () => {
+                preferencesObj[pref] = input.checked;
+            });
+            preferenceDiv.appendChild(input);
+            preferencesContainer.appendChild(preferenceDiv);
+        }
+    }
+
+    // Toggle settings modal visibility and adjust canvas size
+    function toggleSettings() {
+        const settingsModal = document.getElementById('settings-modal');
+        const canvas = document.getElementById('scene-canvas');
+        if (settingsModal.style.display === 'none') {
+            settingsModal.style.display = 'block';
+            canvas.style.width = '80%';
+        } else {
+            settingsModal.style.display = 'none';
+            canvas.style.width = '100%';
+        }
+    }
+
+    // Populate entities
+    const entitiesContainer = document.getElementById('entities');
+    scene.getEntities().forEach(entityId => {
+        const entityDiv = document.createElement('div');
+        entityDiv.classList.add('entity');
+        entityDiv.innerHTML = `<h3>Entity: ${entityId}</h3>`;
+        // Fetch and display components for each entity
+        ['Tag', 'Transform', 'Rigidbody'].forEach(componentType => {
+            const component = scene.getComponent(entityId, componentType);
+            if (component) {
+                const componentDiv = document.createElement('div');
+                componentDiv.classList.add('component');
+                componentDiv.innerHTML = `<strong>${component.type}</strong>: ${component.value}`;
+                entityDiv.appendChild(componentDiv);
+            }
+        });
+        entitiesContainer.appendChild(entityDiv);
+    });
+</script>
+</body>
+</html>

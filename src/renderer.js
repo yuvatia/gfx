@@ -284,14 +284,14 @@ export class Renderer {
         path,
         transform = new Matrix(),
         color = "black",
-        overrideFillWithValue = null,
+        overrideFillWithWireframeValue = null,
         applyPerspectiveDivision = true,
         drawPoints = false,
         stencilID = null,
         outlineColor = null) {
         let fill = !this.preferences.wireframeMode;
-        if (overrideFillWithValue === true || overrideFillWithValue === false) {
-            fill = overrideFillWithValue;
+        if (overrideFillWithWireframeValue === true || overrideFillWithWireframeValue === false) {
+            fill = !overrideFillWithWireframeValue;
         }
         if (drawPoints) {
             path.forEach(p => {
@@ -509,7 +509,7 @@ class BasicShader {
                 faceVerts,
                 modelMatrix,
                 finalDiffuse,
-                !renderPrefs.wireframe,
+                renderPrefs.wireframe,
                 true,
                 false,
                 renderPrefs.writeIdToStencil ? `rgba(${entityId}, ${entityId}, ${entityId}, 1)` : null,
@@ -546,7 +546,7 @@ class BasicShader {
                 faceVerts,
                 modelMatrix,
                 faceColor,
-                !renderPrefs.wireframe,
+                renderPrefs.wireframe,
                 true,
                 false,
                 renderPrefs.writeIdToStencil ? `rgba(${entityId}, ${entityId}, ${entityId}, 1)` : null,

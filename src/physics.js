@@ -48,28 +48,10 @@ const createContactIfCollidingSATClip = (
             s1Matrix,
             s2Matrix,
             info,
-            renderer,
+            null, // renderer,
             Number(document.getElementById("clipStepsCount").value)
         );
         if (!contacts || contacts.length == 0) return null;
-        // console.log(contacts);
-        // Now we draw the contacts
-        renderer.drawPath(
-            contacts,
-            Matrix.identity,
-            "purple",
-            true,
-            true,
-            true
-        );
-        // contacts.forEach(contact => {
-        //     renderer.drawPoint(
-        //         contact,
-        //         false,
-        //         Matrix.identity,
-        //         "purple"
-        //     )
-        // });
         return { contacts, info };
     }
     return null;
@@ -81,10 +63,12 @@ export class PhysicsPreferences {
 }
 
 export class PhysicsSystem {
+    #patchyPatch = null;
+
     preferences = new PhysicsPreferences();
 
     onFixedStep = (scene, debugRenderer) => {
-        const fixedStep = 0.2;
+        const fixedStep = 0.5;
 
         // validate active constraints & collect new ones
         // Collect all follow constraints
@@ -146,14 +130,38 @@ export class PhysicsSystem {
                         rb2.transform,
                         debugRenderer);
                     if (!res) continue;
-                    const { contacts, info } = res;
+                    // Ignored for now
+                    // continue;
+                    this.#patchyPatch = this.#patchyPatch || res;
+                    const { contacts, info } = this.#patchyPatch;
+
+                    // Draw contacts
+                    if (debugRenderer) {
+                        debugRenderer.drawPath(
+                            contacts,
+                            Matrix.identity,
+                            "purple",
+                            true,
+                            true,
+                            true
+                        );
+                        debugRenderer.drawPath(
+                            [contacts[0], contacts[0].toVector().add(info.normal.scale(100))],
+                            Matrix.identity,
+                            "blue",
+                            true,
+                            true,
+                            true
+                        );
+                    }
                     contactConstraint(
                         rb1,
                         rb2,
                         contacts,
                         info.normal,
                         info.depth,
-                        fixedStep);
+                        fixedStep,
+                        debugRenderer);
                 }
             }
         }

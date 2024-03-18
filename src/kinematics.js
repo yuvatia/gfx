@@ -87,8 +87,11 @@ export class Rigidbody {
         this.linearVelocity = linearVelocity || new Vector(1, 0, 0);
         this.angularVelocity = angularVelocity || new Vector(1000, 3000, 0);
 
-        this.friction = 2;
+        this.friction = 1.0;
         this.restitution = 0;
+
+        this.angularDamping = 0.999;
+        this.linearDamping = 0.999;
 
         this.collider = collider;
     }
@@ -155,8 +158,8 @@ export class Rigidbody {
         this.transform.overridenRotationMatrix = finalRotation;
 
         // Apply some damping
-        // this.linearVelocity = this.linearVelocity.scale(0.9999);
-        // this.angularVelocity = this.angularVelocity.scale(0.9999);
+        this.linearVelocity = this.linearVelocity.scale(this.linearDamping);
+        this.angularVelocity = this.angularVelocity.scale(this.angularDamping);
     }
 
     integratePositionPhysicallyAccurateOld(dt) {
@@ -247,19 +250,23 @@ export const resolveFollowConstraint = (rb, r, p, dt) => {
     rb.angularVelocity = rb.angularVelocity.scale(0.98); // temp magic 
 }
 
-export const contactConstraint = (rb1, rb2, contacts, normal, depth, dt) => {
+export const contactConstraint = (rb1, rb2, contacts, normal, depth, dt, debugRenderer) => {
+    let contact_constraints = [];
     // PositionA and PositionB are contact points in A, B relative to A, B.
+    // but actually they are global!!! O: O: O: holy
     for (let contact of contacts) {
         let p = new Vector(...contact.toArray());
-        let PositionA = p.sub(rb1.transform.position);
-        let PositionB = p.sub(rb2.transform.position);
-        let c = new Contact(
+        let PositionA = p;//p.sub(rb1.transform.position);
+        let PositionB = p;//p.sub(rb2.transform.position);
+        contact_constraints.push(new Contact(
             rb1, rb2, PositionA, PositionB, normal, depth
-        );
-        c.initVelocityConstraint(dt);
-        c.solveVelocityConstraint(dt);
-
+        ));
     }
+
+    contact_constraints.forEach(c => c.initVelocityConstraint(dt));
+    // c.initVelocityConstraint(dt);
+    contact_constraints.forEach(c => c.solveVelocityConstraint(dt, debugRenderer));
+
 }
 
 export const contactConstraintForSphere = (rb1, rb2, contactA, contactB, normal, depth, dt) => {

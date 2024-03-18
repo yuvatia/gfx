@@ -84,7 +84,7 @@ const setupScene = (scene, entitiesCount, canvas) => {
         rotation = Vector.zero;
         // if (i === 1) rotation = Vector.zero;
         let scale = new Vector(70, 70, 70);
-        if (i === 0) scale = new Vector(80, 80, 80);
+        // if (i === 0) scale = new Vector(80, 80, 80);
         const entityId = scene.newEntity(`Entity ${i}`, new Transform(position, rotation, scale));
         // Add mesh component
         scene.addComponent(entityId, MeshFilter).meshRef = cubeDcel;
@@ -104,7 +104,7 @@ const setupScene = (scene, entitiesCount, canvas) => {
     // shine towards Z axis
     const lightEntity = scene.newEntity("Light");
     const light = scene.addComponent(lightEntity, DirectionalLight);
-    light.direction = new Vector(0, 0.5, -1).normalize();
+    light.direction = new Vector(0, 0.5, 1).normalize();
     light.intensity = 0.012;
     light.color = new Point(100, 255, 0, 1);
 
@@ -114,7 +114,7 @@ const setupScene = (scene, entitiesCount, canvas) => {
     const [, [rb3]] = rbodiesView[2];
     const [, [rb4]] = rbodiesView[3];
 
-    if (followDemo) {
+    if (followDemo && false) {
         // rb2.linearVelocity = new Vector(-90, -100, 0);
         // rb0.setMass(1000);
         // rb1.angularVelocity = new Vector(1, 0, 0);
@@ -129,9 +129,13 @@ const setupScene = (scene, entitiesCount, canvas) => {
     // Collision demo
 
     rb1.linearVelocity = new Vector(-50, 0, 0);
-    rb1.transform.position = rb2.transform.position.sub(new Vector(400, 0, 0));
-    rb3.transform.position = rb2.transform.position.sub(new Vector(650, 90, 0));
-    rb4.transform.position = rb2.transform.position.sub(new Vector(650, -200, 0));
+    rb1.transform.position = rb2.transform.position.sub(new Vector(550, 0, 0));
+    rb3.transform.position = rb2.transform.position.sub(new Vector(650, 0, 0));
+    // rb3.transform.position = rb2.transform.position.sub(new Vector(650, 90, 0));
+    rb4.transform.position = rb2.transform.position.sub(new Vector(730, -70, 0));
+    rb2.linearVelocity = new Vector(0, 0, -10);
+    rb2.transform.scale = new Vector(100, 100, 100);
+    rb2.transform.position = rb4.transform.position.add(new Vector(0, 0, 150));
 }
 
 const main = () => {
@@ -147,6 +151,7 @@ const main = () => {
     const renderer = new Renderer(
         canvas, stencil, depth, RendererPrefrences.default, sceneCamera
     );
+    // renderer.preferences.wireframeMode = true;
 
     const director = new Director();
     director.setRenderer(renderer);

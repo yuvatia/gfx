@@ -30,11 +30,13 @@ const drawFace = (debugRenderer, face, color, transform = Matrix.identity) => {
 export function createContacts(s1, s2, s1World, s2World, info, debugRenderer = null, clipStepsCount = 0) {
     // Draw axis normal from s1
     // Draw face normal
-    debugRenderer.drawPath(
-        [s1World.multiplyPoint(s1.centroid),
-        s1World.multiplyPoint(s1.centroid.add(info.normal.scale(10)))],
-        Matrix.identity,
-        "yellow");
+    if (debugRenderer) {
+        debugRenderer.drawPath(
+            [s1World.multiplyPoint(s1.centroid),
+            s1World.multiplyPoint(s1.centroid.add(info.normal.scale(10)))],
+            Matrix.identity,
+            "yellow");
+    }
 
     if (!info.faceContact) {
         // Generate edge contact

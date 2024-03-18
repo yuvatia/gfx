@@ -22,7 +22,7 @@ class Jacobian {
         this.m_bias = 0.0;
         if (this.m_type === Jacobian.Type.Normal) {
             // let beta = contact.BodyA.ContactBeta * contact.BodyB.ContactBeta;
-            let beta = 0.1;
+            let beta = 0.01;
             let restitution = contact.BodyA.restitution * contact.BodyB.restitution;
             let relativeVelocity =
                 contact.BodyB.linearVelocity.sub(contact.BodyA.linearVelocity)
@@ -44,7 +44,7 @@ class Jacobian {
         this.m_totalLambda = 0.0;
     }
 
-    resolve(contact) {
+    resolve(contact, dt, debugRenderer) {
         let jv =
             this.m_va.dotProduct(contact.BodyA.linearVelocity)
             + this.m_wa.dotProduct(contact.BodyA.angularVelocity)
@@ -67,7 +67,7 @@ class Jacobian {
         }
         lambda = this.m_totalLambda - oldTotalLambda;
 
-        // contact.BodyA.linearVelocity = contact.BodyA.linearVelocity.add(this.m_va.scale(lambda * contact.BodyA.massInv));
+        contact.BodyA.linearVelocity = contact.BodyA.linearVelocity.add(this.m_va.scale(lambda * contact.BodyA.massInv));
         contact.BodyA.angularVelocity = contact.BodyA.angularVelocity.add(
             contact.BodyA.getInverseInertiaTensor().multiplyVector(this.m_wa.scale(lambda))
         );
@@ -77,6 +77,14 @@ class Jacobian {
             contact.BodyB.getInverseInertiaTensor()
                 .multiplyVector(this.m_wb.scale(lambda))
         );
+
+        // if (debugRenderer) {
+        //     const bDV = this.m_vb.scale(lambda * contact.BodyB.massInv);
+        //     const bDW = contact.BodyB.getInverseInertiaTensor().multiplyVector(this.m_wb.scale(lambda));
+        //     console.log(`DW ${bDW}`);
+        //     // debugRenderer.drawPath([Vector.zero, bDV.scale(200)], Matrix.identity, "red", true, true, true);
+        //     debugRenderer.drawPath([Vector.zero, bDW.scale(200)], Matrix.identity, "orange", true, true, true);
+        // }
 
         // console.log("Done!");
 
@@ -116,8 +124,8 @@ export class Contact {
         this.m_jB.init(this, bitangent, dt);
     }
 
-    solveVelocityConstraint(dt) {
-        this.m_jN.resolve(this, dt);
+    solveVelocityConstraint(dt, debugRenderer) {
+        this.m_jN.resolve(this, dt, debugRenderer);
         this.m_jT.resolve(this, dt);
         this.m_jB.resolve(this, dt);
     }
