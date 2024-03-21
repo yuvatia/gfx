@@ -1,3 +1,7 @@
+/*
+Bugs1:
+1. Camera doesn't rotate around focal point
+*/
 
 
 /*

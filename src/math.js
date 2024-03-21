@@ -33,6 +33,10 @@ export class Vector {
     static zero = new Vector(0, 0, 0);
     static one = new Vector(1, 1, 1);
 
+    isNaN() {
+        return isNaN(this.x) || isNaN(this.y) || isNaN(this.z);
+    }
+
     toPoint() {
         return new Point(this.x, this.y, this.z);
     }

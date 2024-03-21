@@ -12,6 +12,9 @@ export class Plane {
 
     constructor(normal, distance) {
         // N*x + D = 0;
+        if (normal.isNaN()) {
+            console.log("NaN normal!!");
+        }
         this.normal = normal; // Vector
         this.distance = distance; // float
     }

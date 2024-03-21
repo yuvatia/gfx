@@ -42,6 +42,33 @@ const bindSettingControls = (renderer) => {
 
 }
 
+const BoxDCEL = DCELRepresentation.fromSimpleMesh(new Cube());
+const SphereDCEL = DCELRepresentation.fromSimpleMesh(makeIcosphere(2));
+const makeRigidBox = (
+    scene,
+    position,
+    rotation,
+    scale,
+    mass,
+    gravityScale = 0.0,
+    isBox = true,
+    name = "Box") => {
+    const dcel = isBox ? BoxDCEL : SphereDCEL;
+    const entityId = scene.newEntity(name, new Transform(position, rotation, scale));
+    // Add mesh component
+    scene.addComponent(entityId, MeshFilter).meshRef = dcel;
+    // Add material component
+    scene.addComponent(entityId, Material).diffuseColor = new Point(255, 70, 0, 1); // Red
+    // Add rigidbody component
+    const rb = scene.addComponent(
+        entityId,
+        Rigidbody,
+        scene.getComponent(entityId, Transform), mass, Vector.zero, Vector.zero,
+        isBox ? new BoxCollider() : new SphereCollider());
+    rb.gravityScale = gravityScale;
+    return entityId;
+}
+
 const setupScene = (scene, entitiesCount, canvas) => {
     if (entitiesCount < 4) {
         entitiesCount = 4;
@@ -84,19 +111,7 @@ const setupScene = (scene, entitiesCount, canvas) => {
         rotation = Vector.zero;
         // if (i === 1) rotation = Vector.zero;
         let scale = new Vector(70, 70, 70);
-        // if (i === 0) scale = new Vector(80, 80, 80);
-        const entityId = scene.newEntity(`Entity ${i}`, new Transform(position, rotation, scale));
-        // Add mesh component
-        scene.addComponent(entityId, MeshFilter).meshRef = cubeDcel;
-        // Add material component
-        scene.addComponent(entityId, Material).diffuseColor = new Point(255, 70, 0, 1); // Red
-        // Add rigidbody component
-        scene.addComponent(
-            entityId,
-            Rigidbody,
-            scene.getComponent(entityId, Transform), 20, Vector.zero, Vector.zero,
-            followDemo ? new BoxCollider() : new SphereCollider());
-        // Add collider component
+        makeRigidBox(scene, position, rotation, scale, 20, 0, true, `Entity ${i}`);
     }
 
 
@@ -133,7 +148,7 @@ const setupScene = (scene, entitiesCount, canvas) => {
     rb3.transform.position = rb2.transform.position.sub(new Vector(650, 0, 0));
     // rb3.transform.position = rb2.transform.position.sub(new Vector(650, 90, 0));
     rb4.transform.position = rb2.transform.position.sub(new Vector(730, -70, 0));
-    rb2.linearVelocity = new Vector(0, 0, -10);
+    rb2.gravityScale = 0.03;
     rb2.transform.scale = new Vector(100, 100, 100);
     rb2.transform.position = rb4.transform.position.add(new Vector(0, 0, 150));
 }
@@ -159,6 +174,41 @@ const main = () => {
     director.registerSystem(sceneCamera);
     director.registerSystem(new RenderSystem(renderer));
     director.registerSystem(new MouseController(renderer));
+
+    class GameplaySystem {
+        #scene = null;
+        rbodies = [];
+
+        onSetActiveScene(scene) {
+            this.#scene = scene;
+        }
+
+
+        #spawnCube() {
+            this.rbodies.push(makeRigidBox(
+                this.#scene,
+                new Vector(-380, 320, 150), Vector.zero, new Vector(100, 100, 100),
+                10, // Mass
+                0.2  // Gravity
+            ));
+        }
+
+        onFixedStep(scene, renderer) {
+            // Make sure all rbodies are on the ground plane
+            this.rbodies.forEach((entityId) => {
+                const rb = this.#scene.getComponent(entityId, Rigidbody);
+                if (rb.transform.position.z < 0) {
+                    rb.transform.position.z = 0;
+                    rb.linearVelocity = Vector.zero;
+                }
+            });
+        }
+
+        onMouseClick(event) {
+            this.#spawnCube();
+        }
+    }
+    director.registerSystem(new GameplaySystem());
     director.raiseOnSetActiveScene();
     bindSettingControls(renderer);
 

@@ -1,0 +1,30 @@
+/* Make all tables responsive */
+table {
+    display: grid;
+    overflow-x: auto;
+}
+
+/* Make all label tags bold */
+label {
+    font-weight: bold;
+}
+
+/* General beautification and responsive layout */
+body {
+    font-family: Arial, sans-serif;
+    line-height: 1.5;
+    margin: 0;
+    padding: 0;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+@media (max-width: 768px) {
+    .container {
+        padding: 10px;
+    }
+}

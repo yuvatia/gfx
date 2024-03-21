@@ -94,6 +94,11 @@ export class Rigidbody {
         this.linearDamping = 0.999;
 
         this.collider = collider;
+
+        this.gravityScale = 0.0;
+
+        this.force = Vector.zero;
+        this.torque = Vector.zero;
     }
 
     static ColliderType = {
@@ -148,6 +153,10 @@ export class Rigidbody {
     }
 
     integratePositionPhysicallyAccurate(dt) {
+        // implicit euler - first velocity, then position
+        // v' = v + a * dt
+        this.linearVelocity = this.linearVelocity.add(this.force.scale(this.massInv).scale(dt));
+        
         // x' = v * dt
         this.transform.position = this.transform.position.add(this.linearVelocity.scale(dt));
         // R' = R * exp(omega*dt)
@@ -256,25 +265,19 @@ export const contactConstraint = (rb1, rb2, contacts, normal, depth, dt, debugRe
     // but actually they are global!!! O: O: O: holy
     for (let contact of contacts) {
         let p = new Vector(...contact.toArray());
-        let PositionA = p;//p.sub(rb1.transform.position);
-        let PositionB = p;//p.sub(rb2.transform.position);
+        let contactA = p;//p.sub(rb1.transform.position);
+        let contactB = p;//p.sub(rb2.transform.position);
         contact_constraints.push(new Contact(
-            rb1, rb2, PositionA, PositionB, normal, depth
+            rb1, rb2, contactA, contactB, normal, depth
         ));
     }
-
-    contact_constraints.forEach(c => c.initVelocityConstraint(dt));
-    // c.initVelocityConstraint(dt);
-    contact_constraints.forEach(c => c.solveVelocityConstraint(dt, debugRenderer));
-
+    return contact_constraints;
 }
 
 export const contactConstraintForSphere = (rb1, rb2, contactA, contactB, normal, depth, dt) => {
-    let c = new Contact(
+    return new Contact(
         rb1, rb2, contactA, contactB, normal, depth
     );
-    c.initVelocityConstraint(dt);
-    c.solveVelocityConstraint(dt);
 }
 
 

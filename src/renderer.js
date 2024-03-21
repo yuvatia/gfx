@@ -581,6 +581,17 @@ export class RenderSystem {
         const directionalLightSources = scene.getView(DirectionalLight).map(entityId => scene.getComponent(entityId, DirectionalLight));
         this.shader.submitLights(directionalLightSources);
 
+        // Z-ordering in camera space
+        // frameRenderInfo.sort((a, b) => {
+        //     const [aModelMatrix, aMeshRef, aMaterial, aEntId] = a;
+        //     const [bModelMatrix, bMeshRef, bMaterial, bEntId] = b;
+        //     const aWorldPos = aModelMatrix.multiplyPoint(new Vector(0, 0, 0));
+        //     const bWorldPos = bModelMatrix.multiplyPoint(new Vector(0, 0, 0));
+        //     const aCameraSpace = renderer.worldToEye(aWorldPos);
+        //     const bCameraSpace = renderer.worldToEye(bWorldPos);
+        //     return aCameraSpace.z - bCameraSpace.z;
+        // });
+        
         frameRenderInfo.forEach((
             [modelMatrix, meshRef, material, entId]) => this.shader.drawMesh(meshRef, modelMatrix, material, entId)
         );

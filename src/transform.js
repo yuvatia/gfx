@@ -3,9 +3,9 @@ import { Vector } from "./math.js";
 
 export class Transform {
     constructor(position = Vector.zero, rotation = Vector.zero, scale = Vector.one) {
-        this.position = position;
-        this.rotation = rotation;
-        this.scale = scale;
+        this.position = position.clone();
+        this.rotation = rotation.clone();
+        this.scale = scale.clone();
 
         this.overridenRotationMatrix = null;
 
