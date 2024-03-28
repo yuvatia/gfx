@@ -8,6 +8,7 @@ import { SignalEmitter } from "./signal_emitter.js";
 export class Director {
     constructor() {
         this.systems = [];
+        this.systemStates = {};  // Name to state, state is either true or false (on or off)
         this.scene = new Scene();
         this.renderer = null;
 
@@ -21,6 +22,14 @@ export class Director {
 
     getScene() {
         return this.scene;
+    }
+
+    setSystemState(systemName, enabled) {
+        this.systemStates[systemName] = enabled;
+    }
+
+    getSystemState(systemName) {
+        return this.systemStates[systemName];
     }
 
     setRenderer(renderer) {
@@ -59,12 +68,24 @@ export class Director {
         this.#invokeAllRegisteredSystemCallbacks("onMouseMove", event);
     }
 
-    registerSystem(system) {
+    registerSystem(system, enable = true) {
         this.systems.push(system);
+        this.setSystemState(system.constructor.name, enable);
         // raise onSetActiveScene event for system
         if (system.onSetActiveScene !== undefined) {
             system.onSetActiveScene(this.scene);
         }
+    }
+
+    // Either by name or ref
+    removeSystem(system) {
+        const systemRef = (typeof system === "string") ? this.getSystemByName(system) : system;
+        this.systems = this.systems.filter((sys) => sys !== systemRef);
+        delete this.systemStates[systemRef.constructor.name];
+    }
+
+    getSystemByName(name) {
+        return this.systems.find((sys) => sys.constructor.name === name);
     }
 
     onViewportResize() {
@@ -96,10 +117,10 @@ export class Director {
         this.#invokeAllRegisteredSystemCallbacks("onMouseScroll", event);
     }
 
-    #invokeAllRegisteredSystemCallbacks(name, ...args) {
+    #invokeAllRegisteredSystemCallbacks(eventName, ...args) {
         for (let system of this.systems) {
-            if (!system[name]) continue;
-            system[name](...args);
+            if (!system[eventName]) continue;
+            system[eventName](...args);
         }
     }
 
