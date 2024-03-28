@@ -57,6 +57,12 @@ export class PhysicsSystem {
 
     #collectConstraints(scene, debugRenderer) {
         this.#followConstraints = scene.getComponentView(FollowConstraint);
+        // Collect UUIDComponent matching followConstraint id
+        this.#followConstraints.map(([, [constraint]]) => {
+            const rb1 = scene.getComponentByUUID(constraint.rb1ID, Rigidbody);
+            const rb2 = scene.getComponentByUUID(constraint.rb2ID, Rigidbody);
+            constraint.setRigidbodies(rb1, rb2);
+        });
 
         // Collect collision constraints from last frame
         this.#rigidBodies = scene.getComponentView(Rigidbody);

@@ -22,7 +22,7 @@ export class Serializable {
     fromJSON(dict) {
         // Default implementation
         Object.assign(this, dict);
-        this.initialize();
+        this.initialize(dict);
         return this;
     }
 }

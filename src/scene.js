@@ -1,4 +1,4 @@
-import { Tag, UUIDComponent } from "./components.js";
+import { Tag, UUID, UUIDComponent } from "./components.js";
 import { Serializable } from "./reviver.js";
 import { Transform } from "./transform.js";
 
@@ -52,6 +52,15 @@ export class Scene extends Serializable {
         this.#freelist = []
     }
 
+    initialize() {
+        // The entity IDs should be fixed after deserialization
+        // Each ID is 1st generation and the index matches the index into entities, so
+        // we can just set the ID to the index
+        this.entities.forEach((entity, index) => {
+            entity.id = this.createNewEntityId(index, 0);
+        });
+    }
+
     newEntity(name = "Empty", transform = new Transform()) {
         const newIndex = this.#getNextAvailableEntityIndex();
         const currentGeneration = this.#entityIdToGeneration(this.entities[newIndex].id);
@@ -83,6 +92,23 @@ export class Scene extends Serializable {
 
     getAllByName(name) {
         return this.getEntities().filter(entity => entity.components.Tag.name === name).map(entity => entity.id);
+    }
+
+    getByUUID(uuid) {
+        const entity = this.getEntities().find(entity => UUID.equals(entity.uuid, uuid));
+        if (!entity) {
+            return null;
+        }
+        return entity.id;
+    }
+
+    getUUID(entityID) {
+        return this.getComponent(entityID, UUIDComponent).uuid;
+    }
+
+    getComponentByUUID(uuid, type) {
+        const entityID = this.getByUUID(uuid);
+        return this.getComponent(entityID, type);
     }
 
     #InvalidEntityIndex = 0xFFFF;

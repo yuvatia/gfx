@@ -1,6 +1,7 @@
 import { Vector, Matrix, Point } from './math.js';
 import { Plane } from './collision.js';
 import { Serializable } from './reviver.js';
+import { Cube } from './geometry.js';
 class Interval {
     constructor(min, max) {
         this.min = min;
@@ -238,6 +239,15 @@ class DCELRepresentation extends Serializable {
         this.halfEdges = [];
         this.faces = [];
         this.centroid = new Vector(0, 0, 0);
+    }
+
+    initialize(assetName) {
+        const CUBE_MASH = 'HALFMESH_PLACEHOLDER';
+        switch(assetName) {
+            case CUBE_MASH:
+            default:
+                Object.assign(this, DCELRepresentation.fromSimpleMesh(new Cube()));
+        }
     }
 
     getSupport(direction, transform = Matrix.identity) {

@@ -11,21 +11,46 @@ export class Tag extends Component {
     constructor() {
         super();
     }
+
+    toString() {
+        return this.name;
+    }
 }
 
-export class UUIDComponent extends Component {
-    uuid = UUIDComponent.generateUUID();
+export class UUID extends Serializable {
+    value = null;
 
-    constructor() {
-        super();
-        this.uuid = UUIDComponent.generateUUID();
-    }
-
-    static generateUUID() {
-        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+    static create() {
+        const instance = new UUID();
+        const value = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
             var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
             return v.toString(16);
         });
+        instance.value = value;
+        return instance;
+    }
+
+    static equals(a, b) {
+        return a.value === b.value;
+    }
+
+    toString() {
+        return this.value;
+    }
+
+    static empty = new UUID();
+}
+
+export class UUIDComponent extends Component {
+    uuid = UUID.empty;
+
+    constructor() {
+        super();
+        this.uuid = UUID.create();
+    }
+
+    toString() {
+        return this.value;
     }
 }
 export class MeshFilter extends Component {

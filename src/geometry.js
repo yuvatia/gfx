@@ -11,10 +11,19 @@ export class Mesh extends Serializable {
 
     getValuesDict() {
         return 'MESH_PLACEHOLDER';
-        return {
-            vertices: this.vertices,
-            faces: this.faces
-        };
+        // return {
+        //     vertices: this.vertices,
+        //     faces: this.faces
+        // };
+    }
+
+    initialize(assetName) {
+        const GRID_MASH = 'MESH_PLACEHOLDER';
+        switch (assetName) {
+            case GRID_MASH:
+            default:
+                Object.assign(this, makeGrid());
+        }
     }
 
     getVertices() {

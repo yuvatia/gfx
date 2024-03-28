@@ -1,5 +1,5 @@
 import { createScaleMatrix, decomposeRotationXYZ, invertRotation, reOrthogonalizeRotation } from "./affine.js";
-import { Component } from "./components.js";
+import { Component, UUIDComponent } from "./components.js";
 import { Cube } from "./geometry.js";
 import { DCELRepresentation } from "./halfmesh.js";
 import { Matrix, Vector } from "./math.js";
@@ -363,15 +363,32 @@ export const frameConstraint1Broken = (rb, r, p, dt) => {
 
 
 export class FollowConstraint extends Component {
-    rb1 = new Rigidbody();  // tethered
-    rb2 = new Rigidbody();  // tether
+    rb1ID = null;  // tethered
+    rb2ID = null;  // tether
     rb1Anchor = Vector.zero; // in rb1 local space
 
-    constructor(rb1 = null, rb2 = null, rb1Anchor = Vector.zero) {
+    #rb1 = new Rigidbody();  // tethered
+    #rb2 = new Rigidbody();  // tether
+
+
+    constructor(rb1ID = null, rb2ID = null, rb1Anchor = Vector.zero) {
         super();
 
-        this.rb1 = rb1;
-        this.rb2 = rb2;
+        this.rb1ID = rb1ID;
+        this.rb2ID = rb2ID;
         this.rb1Anchor = rb1Anchor;
+    }
+
+    setRigidbodies(rb1, rb2) {
+        this.#rb1 = rb1;
+        this.#rb2 = rb2;
+    }
+
+    get rb1() {
+        return this.#rb1;
+    }
+
+    get rb2() {
+        return this.#rb2;
     }
 }

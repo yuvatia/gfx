@@ -24,6 +24,12 @@ export class Director {
         return this.scene;
     }
 
+    setActiveScene(scene) {
+        if (this.scene) this.raiseOnSceneUnload(this.scene);
+        this.scene = scene;
+        this.raiseOnSetActiveScene();
+    }
+
     setSystemState(systemName, enabled) {
         this.systemStates[systemName] = enabled;
     }
@@ -46,6 +52,10 @@ export class Director {
 
         // Renderer is also treated as a system
         this.registerSystem(renderer);
+    }
+
+    raiseOnSceneUnload(scene) {
+        this.#invokeAllRegisteredSystemCallbacks("onSceneUnload", scene);
     }
 
     raiseOnSetActiveScene() {
@@ -152,7 +162,7 @@ export class Director {
     }
 }
 
-export const SimpleDirector = (color, stencil, depth) => {
+export const SimpleDirector = (color, stencil, depth, autoEnablePhysics = true) => {
     const sceneCamera = new Camera();
     const renderer = new Renderer(
         color, stencil, depth, RendererPrefrences.default, sceneCamera
@@ -161,7 +171,7 @@ export const SimpleDirector = (color, stencil, depth) => {
 
     const director = new Director();
     director.setRenderer(renderer);
-    director.registerSystem(new PhysicsSystem());
+    director.registerSystem(new PhysicsSystem(), autoEnablePhysics);
     director.registerSystem(sceneCamera);
     director.registerSystem(new RenderSystem(renderer));
 

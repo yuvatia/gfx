@@ -126,8 +126,6 @@ export const setupScene = (scene, entitiesCount, canvas) => {
 
     // TEMP
     // const serialized = scene.serializeEntity(lightEntity);
-    // const serialized = JSON.stringify(scene);
-    // const parsed = JSON.parse(serialized, Reviever.parse);
     // console.log(serialized)
     // console.log(parsed);
     // console.log(Object.assign(new Transform(), parsedTransform);
@@ -135,8 +133,8 @@ export const setupScene = (scene, entitiesCount, canvas) => {
     // EOTEMP
 
     const rbodiesView = scene.getComponentView(Rigidbody);
-    const [, [rb1]] = rbodiesView[0];
-    const [, [rb2]] = rbodiesView[1];
+    const [ent1Id, [rb1]] = rbodiesView[0];
+    const [ent2Id, [rb2]] = rbodiesView[1];
     const [, [rb3]] = rbodiesView[2];
     const [, [rb4]] = rbodiesView[3];
 
@@ -147,7 +145,7 @@ export const setupScene = (scene, entitiesCount, canvas) => {
 
         // Create a follow constraint
         const followEntId = scene.newEntity("FollowConstraint");
-        scene.addComponent(followEntId, FollowConstraint, rb1, rb2, Vector.one.scale(0.5));
+        scene.addComponent(followEntId, FollowConstraint, scene.getUUID(ent1Id), scene.getUUID(ent2Id), Vector.one.scale(0.5));
 
         return;
     }
@@ -216,6 +214,12 @@ const main = () => {
         setupScene(scene, entitiesCount, canvas);
     });
     setupScene(scene, entitiesCount, canvas);
+
+    const serialized = JSON.stringify(scene);
+    const parsed = JSON.parse(serialized, Reviever.parse);
+    console.log(parsed);
+    director.setActiveScene(parsed);
+
 
     director.setFpsTarget(60);
     director.start();
