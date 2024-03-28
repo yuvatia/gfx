@@ -1,10 +1,8 @@
+import { Tag, UUIDComponent } from "./components.js";
+import { Serializable } from "./reviver.js";
 import { Transform } from "./transform.js";
 
-export class Tag {
-    name = "Empty";
-}
-
-class Entity {
+class Entity extends Serializable {
     id = 0;  // Default to id: 0 generation: 0
     components = {};  // c.constructor.name: c
 
@@ -30,12 +28,28 @@ class Entity {
         }
         return false;
     }
+
+    getValuesDict() {
+        // Discard ID, we have UUID component for this
+        return { components: { ...this.components } };
+    }
+
+    get uuid() {
+        return this.components.UUIDComponent.uuid;
+    }
+
 }
 
-export class Scene {
-    constructor() {
+export class Scene extends Serializable {
+    entities = [];
+    name = "Scene";
+    #freelist = [];
+
+    constructor(name = "Scene") {
+        super();
+        this.name = name;
         this.entities = []
-        this.freelist = []
+        this.#freelist = []
     }
 
     newEntity(name = "Empty", transform = new Transform()) {
@@ -45,11 +59,18 @@ export class Scene {
         const entity = this.entities[newIndex];
 
         entity.id = newId;
-
+        // Always assign uuid
+        this.addComponent(newId, UUIDComponent);
         this.addComponent(newId, Tag).name = name;
         const t = this.addComponent(newId, Transform, transform.position, transform.rotation, transform.scale);
 
         return newId;
+    }
+
+    serializeEntity(entityId) {
+        if (!this.isEntityValid(entityId)) return null;
+        const entity = this.entityIdToEntity(entityId);
+        return JSON.stringify(entity);
     }
 
     clear() {
@@ -68,8 +89,8 @@ export class Scene {
 
     #getNextAvailableEntityIndex() {
         // first, exhaust freelist
-        if (this.freelist.length > 0) {
-            return this.freelist.pop();
+        if (this.#freelist.length > 0) {
+            return this.#freelist.pop();
         }
         // Empty freelist, add new entity
         const index = this.entities.length;
@@ -127,11 +148,11 @@ export class Scene {
         entity.id = this.createNewEntityId(this.#InvalidEntityIndex, generation + 1);
         entity.components = {};
         // Add to list of free entities
-        this.freelist.push(index);
+        this.#freelist.push(index);
     }
 
     addComponent(entityId, type, ...args) {
-        if (!this.isEntityValid(entityId)) return;
+        if (!this.isEntityValid(entityId)) return null;
         const component = new type(...args);
         this.entityIdToEntity(entityId).components[type.name] = component;
         return component;
@@ -174,6 +195,5 @@ export class Scene {
         return this.getEntities().filter(entity => entity.hasAllOf(...components)).map(ent => {
             return [ent.id, components.map(comp => ent.components[comp.name])];
         });
-
     }
 }

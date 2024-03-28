@@ -1,9 +1,20 @@
 import { Vector, Point } from './math.js';
+import { Serializable } from './reviver.js';
 
-export class Mesh {
+export class Mesh extends Serializable {
     constructor(vertices, faces) {
+        super();
+
         this.vertices = vertices;
         this.faces = faces;
+    }
+
+    getValuesDict() {
+        return 'MESH_PLACEHOLDER';
+        return {
+            vertices: this.vertices,
+            faces: this.faces
+        };
     }
 
     getVertices() {
@@ -110,7 +121,7 @@ export class Icosahedron extends Mesh {
 
 function vertexForEdge(lookup, vertices, first, second) {
     let key = first < second ? `${first},${second}` : `${second},${first}`;
-    
+
     if (!lookup.has(key)) {
         let edge0 = vertices[first];
         let edge1 = vertices[second];
@@ -120,23 +131,23 @@ function vertexForEdge(lookup, vertices, first, second) {
         vertices.push(normalizedPoint);
         lookup.set(key, vertices.length - 1);
     }
-    
+
     return lookup.get(key);
 }
 
 function subdivide(vertices, triangles) {
     let lookup = new Map();
     let result = [];
-    
+
     triangles.forEach(triangle => {
         let mid = [0, 1, 2].map(edge => vertexForEdge(lookup, vertices, triangle[edge], triangle[(edge + 1) % 3]));
-        
+
         result.push([triangle[0], mid[0], mid[2]]);
         result.push([triangle[1], mid[1], mid[0]]);
         result.push([triangle[2], mid[2], mid[1]]);
         result.push(mid);
     });
-    
+
     return result;
 }
 
@@ -144,7 +155,7 @@ export function makeIcosphere(subdivisions = 0) {
     let icosahedron = new Icosahedron();
     let vertices = icosahedron.getVertices().slice();
     let triangles = icosahedron.getFaces().slice();
-    
+
     for (let i = 0; i < subdivisions; i++) {
         triangles = subdivide(vertices, triangles);
     }
@@ -160,7 +171,7 @@ export function makeIcosphere(subdivisions = 0) {
         }
         return triangle;
     });
-    
+
     return new Mesh(vertices, triangles);
 }
 
@@ -175,7 +186,7 @@ export function makeRect() {
     let faces = [
         [3, 2, 1, 0]
     ];
-    
+
     return new Mesh(vertices, faces);
 }
 

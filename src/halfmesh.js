@@ -1,5 +1,6 @@
 import { Vector, Matrix, Point } from './math.js';
 import { Plane } from './collision.js';
+import { Serializable } from './reviver.js';
 class Interval {
     constructor(min, max) {
         this.min = min;
@@ -229,8 +230,10 @@ class Face {
     }
 }
 
-class DCELRepresentation {
+class DCELRepresentation extends Serializable {
     constructor() {
+        super();
+
         this.vertices = [];
         this.halfEdges = [];
         this.faces = [];
@@ -279,6 +282,11 @@ class DCELRepresentation {
         });
 
         return new Interval(minProjection, maxProjection);
+    }
+
+    getValuesDict() {
+        // Temporary
+        return 'HALFMESH_PLACEHOLDER';
     }
 
     static fromSimpleMesh(mesh) {

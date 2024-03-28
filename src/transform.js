@@ -1,7 +1,8 @@
 import { createTransformationMatrix, createTranslationMatrix, createScaleMatrix, createRotationMatrixXYZ, invertRotation } from "./affine.js";
+import { Component } from "./components.js";
 import { Vector } from "./math.js";
 
-export class Transform {
+export class Transform extends Component {
     position = null;
     rotation = null;
     scale = null;
@@ -9,12 +10,18 @@ export class Transform {
     overridenRotationMatrix = null;
 
     constructor(position = Vector.zero, rotation = Vector.zero, scale = Vector.one) {
+        super();
+
         this.position = position.clone();
         this.rotation = rotation.clone();
         this.scale = scale.clone();
 
         this.overridenRotationMatrix = null;
 
+        this.initialize();
+    }
+
+    initialize() {
         this.validateWorldMatrix();
     }
 

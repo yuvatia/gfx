@@ -590,7 +590,7 @@ export class RenderSystem {
         const directionalLightSources = scene.getView(DirectionalLight).map(entityId => scene.getComponent(entityId, DirectionalLight));
         this.shader.submitLights(directionalLightSources);
 
-        // Z-ordering in camera space
+        // // Z-ordering in camera space
         // frameRenderInfo.sort((a, b) => {
         //     const [aModelMatrix, aMeshRef, aMaterial, aEntId] = a;
         //     const [bModelMatrix, bMeshRef, bMaterial, bEntId] = b;
@@ -604,7 +604,5 @@ export class RenderSystem {
         frameRenderInfo.forEach((
             [modelMatrix, meshRef, material, entId]) => this.shader.drawMesh(meshRef, modelMatrix, material, entId)
         );
-        
-        console.log("scene");
     }
 }

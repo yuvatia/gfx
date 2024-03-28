@@ -1,5 +1,8 @@
-export class Point {
+import { Serializable } from "./reviver.js";
+
+export class Point extends Serializable {
     constructor(x, y, z = 0, w = 1) {
+        super();
         this.x = x;
         this.y = y;
         this.z = z;
@@ -23,8 +26,9 @@ export class Point {
     }
 }
 
-export class Vector {
+export class Vector extends Serializable {
     constructor(x, y, z) {
+        super();
         this.x = x;
         this.y = y;
         this.z = z;
@@ -131,8 +135,9 @@ export class Vector {
 }
 
 // Column major
-export class Matrix {
+export class Matrix extends Serializable {
     constructor(elements, inverted = null) {
+        super();
         this.elements = elements || Array.from({ length: 16 }, (_, i) => (i % 5 === 0 ? 1 : 0)); // Identity matrix
     }
 

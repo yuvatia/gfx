@@ -1,4 +1,5 @@
 import { createScaleMatrix, decomposeRotationXYZ, invertRotation, reOrthogonalizeRotation } from "./affine.js";
+import { Component } from "./components.js";
 import { Cube } from "./geometry.js";
 import { DCELRepresentation } from "./halfmesh.js";
 import { Matrix, Vector } from "./math.js";
@@ -78,7 +79,7 @@ export class MeshCollider {
     meshRef = null;
 }
 
-export class Rigidbody {
+export class Rigidbody extends Component {
     mass = 1;
     #massInv = 1;  // Not editable
     transform = null;
@@ -97,6 +98,8 @@ export class Rigidbody {
     collider = null; // Not editable at the moment sadly?
 
     constructor(transform = null, mass = 1, linearVelocity = null, angularVelocity = null, collider = null) {
+        super();
+
         this.setTransform(transform);
         this.setMass(mass);
 
@@ -115,6 +118,11 @@ export class Rigidbody {
 
         this.force = Vector.zero;
         this.torque = Vector.zero;
+    }
+
+    initialize() {
+        // Will validate inv mass
+        this.setMass(this.mass);
     }
 
     static ColliderType = {
@@ -354,12 +362,14 @@ export const frameConstraint1Broken = (rb, r, p, dt) => {
 }
 
 
-export class FollowConstraint {
+export class FollowConstraint extends Component {
     rb1 = new Rigidbody();  // tethered
     rb2 = new Rigidbody();  // tether
     rb1Anchor = Vector.zero; // in rb1 local space
 
     constructor(rb1 = null, rb2 = null, rb1Anchor = Vector.zero) {
+        super();
+
         this.rb1 = rb1;
         this.rb2 = rb2;
         this.rb1Anchor = rb1Anchor;

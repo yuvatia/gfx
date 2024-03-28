@@ -9,6 +9,7 @@ import { MeshFilter, Material, MeshRenderer, DirectionalLight } from "./componen
 import { Director, SimpleDirector } from "./Director.js";
 import { Camera } from "./camera.js";
 import { MouseController } from "./MouseController.js";
+import { Reviever } from "./reviver.js";
 
 const bindSettingControls = (renderer) => {
     const settings = [
@@ -117,10 +118,21 @@ export const setupScene = (scene, entitiesCount, canvas) => {
     // Create a light source
     // shine towards Z axis
     const lightEntity = scene.newEntity("Light");
+    scene.getComponent(lightEntity, Transform).position.x = 1337;
     const light = scene.addComponent(lightEntity, DirectionalLight);
     light.direction = new Vector(0, 0.5, 1).normalize();
     light.intensity = 0.012;
     light.color = new Point(100, 255, 0, 1);
+
+    // TEMP
+    // const serialized = scene.serializeEntity(lightEntity);
+    // const serialized = JSON.stringify(scene);
+    // const parsed = JSON.parse(serialized, Reviever.parse);
+    // console.log(serialized)
+    // console.log(parsed);
+    // console.log(Object.assign(new Transform(), parsedTransform);
+    // serialized.
+    // EOTEMP
 
     const rbodiesView = scene.getComponentView(Rigidbody);
     const [, [rb1]] = rbodiesView[0];
