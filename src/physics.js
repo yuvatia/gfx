@@ -43,7 +43,7 @@ const getMeshMeshManifold = (
 
 export class PhysicsPreferences {
     gravity = 9.8;
-    clipStepsCount = Number(document.getElementById("clipStepsCount").value);
+    clipStepsCount = 99; //Number(document.getElementById("clipStepsCount").value);
 }
 
 export class PhysicsSystem {
@@ -62,7 +62,7 @@ export class PhysicsSystem {
         this.#collectCollisions(debugRenderer);
     }
 
-    #solveConstraints() {
+    #solveConstraints(fixedStep) {
         this.#followConstraints.forEach(([entId, [constraint]]) => {
             const tethered = constraint.rb1;
             const tether = constraint.rb2;
@@ -177,7 +177,7 @@ export class PhysicsSystem {
         // update velocity
 
         // solve constraints, collisions last
-        this.#solveConstraints();
+        this.#solveConstraints(fixedStep);
         this.#solveCollisions(debugRenderer, fixedStep);
 
         // update positions

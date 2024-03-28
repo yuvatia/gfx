@@ -1,30 +1,56 @@
-/* Make all tables responsive */
-table {
-    display: grid;
-    overflow-x: auto;
-}
-
-/* Make all label tags bold */
-label {
-    font-weight: bold;
-}
-
-/* General beautification and responsive layout */
+html,
 body {
-    font-family: Arial, sans-serif;
-    line-height: 1.5;
+    height: 100%;
     margin: 0;
     padding: 0;
 }
 
-.container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 20px;
+#grid-wrapper {
+    height: 100%;
 }
 
-@media (max-width: 768px) {
-    .container {
-        padding: 10px;
-    }
+.grid-container {
+    display: grid;
+    grid-template-areas:
+        'header header header'
+        'left middle right'
+    ;
+    grid-template-columns: 1fr 3fr 1fr;
+    grid-template-rows: 1fr 5fr;
+    gap: 10px;
+    height: 100%
+}
+
+.grid-container.toggled {
+    grid-template-areas:
+        'header header header'
+        'middle middle middle';
+}
+
+.header {
+    grid-area: header;
+    background-color: #f00;
+}
+
+.left {
+    grid-area: left;
+    background-color: #0f0;
+}
+
+.middle {
+    grid-area: middle;
+    background-color: #00f;
+}
+
+.right {
+    grid-area: right;
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 10px;
+}
+
+.right>div {
+    background-color: #ff0;
+    overflow: auto;
 }

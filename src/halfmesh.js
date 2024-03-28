@@ -116,7 +116,7 @@ class Face {
     */
 
     clipSelfAgainstFace(clippingFace, ClippingTransform, clippingCentroid, SubjectTransform) {
-        return Face.clipAgainstFace(self.getVertices(SubjectTransform), clippingFace, ClippingTransform, clippingCentroid);
+        return Face.clipAgainstFace(this.getVertices(SubjectTransform), clippingFace, ClippingTransform, clippingCentroid);
     }
 
     static clipAgainstFace(subject, clippingFace, ClippingTransform, clippingCentroid) {

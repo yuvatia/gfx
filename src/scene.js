@@ -90,6 +90,9 @@ export class Scene {
         if (index === this.#InvalidEntityIndex) {
             return false;
         }
+        if (index >= this.entities.length) {
+            return false;
+        }
         const entity = this.entities[index];
         return entity && entity.id === entityId;
     }
@@ -104,6 +107,9 @@ export class Scene {
     }
 
     entityIdToEntity(entityId) {
+        if (!this.isEntityValid(entityId)) {
+            return null;
+        }
         const index = this.#entityIdToIndex(entityId);
         const generation = this.#entityIdToGeneration(entityId);
         const entity = this.entities[index];

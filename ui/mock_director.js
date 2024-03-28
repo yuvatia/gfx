@@ -259,7 +259,6 @@ const director = new Director();
 const scene = director.getActiveScene();
 const cube = scene.newEntity("Cube");
 scene.getComponent(cube, Transform).position.x = 132;
-
 scene.addComponent(cube, Rigidbody).transform = scene.getComponent(cube, Transform);
 scene.addComponent(cube, RenderFilter).wireframe = false;
 
@@ -280,32 +279,31 @@ createYoffeeElement("vector-controller", (props) => {
     if (myState.constructor.name !== "Vector") return html()``;
 
     return html(myState)`
-    <div>
-        <div>
-            ${props.fieldkey}
-        </div>
-        <div>
-            ${() => Object.entries(myState).map(([key, value]) => {
+    <div style="display: flex; justify-content: space-between; overflow-x: auto;">
+        ${() => Object.entries(myState).map(([key, value]) => {
         if (key.startsWith("_")) return;
         const inputState = { value };
         return html()`
-            ${key}
-            <input type="number" ${inputState} onchange=${({ currentTarget }) => myState[key] = Number(currentTarget.value)}>`
-    }
-    )}
-        </div>
+            <div style="">
+                <div>${key}</div>
+                <input type="number" style="width: 80%;" ${inputState} onchange=${({ currentTarget }) => myState[key] = Number(currentTarget.value)}>
+            </div>`
+    })}
     </div>`;
 });
 
 createYoffeeElement("transform-controller", (props) => {
     const t = scene.getComponent(props.entity, Transform);
     if (t === undefined) return html`<div>Transform not found</div>`;
-    return html(props, t)`
+    return html(props)`
     <div>
-    <br><br>Transform
-    ${() => Object.entries(t).map(([key, value]) => html()`
-        <vector-controller fieldkey=${key} vec=${value}></vector-controller>
-    `)}
+    <p>Transform</p>
+    ${() => ["position", "rotation", "scale"].map(key => {
+        let t = scene.getComponent(props.entity, Transform);
+        return html(t)`
+        <generic-controller fieldkey=${key} value=${t[key]}></generic-controller>
+    `}
+    )}
     </div>
     `;
 });
@@ -323,42 +321,72 @@ createYoffeeElement("generic-controller", (props) => {
     if (props.fieldkey.startsWith("_") || props.value === undefined || props.value.constructor === undefined) return html()``;
     if (props.value instanceof Vector) {
         return html(props)`
-        // ${JSON.stringify(props)}
-        <vector-controller fieldkey=${props.key} vec=${props.value}></vector-controller>`
+        <div>
+            <vector-controller fieldkey=${props.key} vec=${props.value}></vector-controller>
+        </div>
+        `
     }
     const inputState = { value: props.value };
-
     if (props.type === "Number") {
-        // return 'foo';
         return html(props, inputState)`
-        <div>
-        ${props.fieldkey} :
-            <input type="number" ${() => inputState} onchange=${({ currentTarget }) => props.value = Number(currentTarget.value)}>
+        <div style="display: flex; align-items: center;">
+            <div>${props.fieldkey}</div>
+            <input 
+                type="number" 
+                ${() => inputState} 
+                onchange=${({ currentTarget }) => props.onfatherupdate(Number(currentTarget.value))}>
         </div>`
     }
 
     if (props.type === "String") {
         return html(props, inputState)`
-        <div>
-            <input type="text" ${() => inputState} onchange=${({ currentTarget }) => props.value = currentTarget.value}>
+        <div style="display: flex; align-items: center;">
+            <div>${props.fieldkey}</div>
+            <input type="text" ${() => inputState} onchange=${({ currentTarget }) => props.value = Number(currentTarget.value)}>
         </div>`
+    }
+
+    if (props.type === "Transform") {
+        return html()`Ohhh shit!!`;
     }
 
     return html()`${props.fieldkey} ${JSON.stringify(props)}`;
 });
 
 createYoffeeElement("rigidbody-controller", (props) => {
-    const t = scene.getComponent(props.entity, Rigidbody);
-    if (t === undefined) return html`<div>Rigidbody not found</div>`;
-    return html(props, t)`
+    const tO = scene.getComponent(props.entity, Rigidbody);
+    if (tO === undefined) return html`<div>Rigidbody not found</div>`;
+    return html(props)`
     <div>
-        <br><br>Rigidbody
-        ${["velocity", "mass"].map(key => {
-        return html()`
+        <p>Rigidbody</p>
+        ${() => ["velocity", "mass"].map(key => {
+        let t = scene.getComponent(props.entity, Rigidbody);
+        return html(props)`
                 <generic-controller 
                     fieldkey=${() => key} 
                     value=${() => t[key]} 
-                    type=${() => t[key].constructor.name}>
+                    type=${() => t[key].constructor.name}
+                    onfatherupdate=${(v) => t[key] = v}}>
+                </generic-controller>`
+    })
+        }
+    </div>
+    `
+});
+
+createYoffeeElement("tag-controller", (props) => {
+    const t = scene.getComponent(props.entity, Tag);
+    if (t === undefined) return html`<div>Tag not found</div>`;
+    return html(props)`
+    <div>
+        <p>Tag</p>
+        ${() => ["name"].map(key => {
+        let t = scene.getComponent(props.entity, Tag);
+        return html(t)`
+                <generic-controller 
+                    fieldkey=${() => key} 
+                    value=${() => t.name} 
+                    type=${() => t.name.constructor.name}>
                 </generic-controller>`
     })
         }
@@ -368,15 +396,38 @@ createYoffeeElement("rigidbody-controller", (props) => {
 
 
 createYoffeeElement("entity-controller", (props) => {
-    const entity = scene.getEntityByID(props.entity);
-    return html(props, entity)`
-    <div>
-        <div>${entity.id}</div>
-        <transform-controller entity=${entity.id}></transform-controller>
-        <rigidbody-controller entity=${entity.id}></rigidbody-controller>
-    </div>
+    return html(props)`
+    <div class="right">
+    <tag-controller entity=${() => props.entity}></tag-controller>
+    <transform-controller entity=${() => props.entity}></transform-controller>
+    <rigidbody-controller entity=${() => props.entity}></rigidbody-controller>
+    </div
     `;
 });
+
+const AppState = {
+    selectedEntity: 0
+};
+
+createYoffeeElement('component-view', () => {
+    return html(AppState)`
+    <div>
+        <entity-controller entity=${() => AppState.selectedEntity}></entity-controller>
+    </div>
+    `;
+})
+
+createYoffeeElement('scene-view', () => {
+    return html()`
+    <div>
+        ${() => scene.getEntities().map(({ id }) => html()`
+            <div onclick=${() => AppState.selectedEntity = id}>
+                ${scene.getComponent(id, Tag).name}
+            </div>
+        `)}
+    </div>
+    `;
+})
 
 const main = async () => {
     // scene.getEntities().forEach(({ id }) => {
@@ -388,7 +439,8 @@ const main = async () => {
     await new Promise(r => setTimeout(r, 3000));
     scene.getComponent(0, Transform).position.x = 1337;
     state.x = 1221321;
-
+    scene.getComponent(0, Tag).name = "Brutha";
+    scene.getComponent(0, Rigidbody).mass += 11;
 }
 
 document.addEventListener("DOMContentLoaded", main);

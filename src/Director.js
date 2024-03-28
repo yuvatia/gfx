@@ -1,4 +1,8 @@
+import { Camera } from "./camera.js";
+import { PhysicsSystem } from "./physics.js";
+import { RenderSystem, Renderer, RendererPrefrences } from "./renderer.js";
 import { Scene } from "./scene.js";
+import { SignalEmitter } from "./signal_emitter.js";
 
 
 export class Director {
@@ -6,6 +10,11 @@ export class Director {
         this.systems = [];
         this.scene = new Scene();
         this.renderer = null;
+
+        this.fpsTarget = 60;
+        this.lastFrameTime = null;
+
+        this.RenderSignalEmitter = new SignalEmitter();
 
         window.addEventListener("resize", this.onViewportResize.bind(this));
     }
@@ -24,6 +33,9 @@ export class Director {
         targetCanvas.addEventListener('mouseup', this.onMouseUp.bind(this));
         targetCanvas.addEventListener('mousedown', this.onMouseDown.bind(this));
         targetCanvas.addEventListener('mousemove', this.onMouseMove.bind(this));
+
+        // Renderer is also treated as a system
+        this.registerSystem(renderer);
     }
 
     raiseOnSetActiveScene() {
@@ -48,6 +60,10 @@ export class Director {
 
     registerSystem(system) {
         this.systems.push(system);
+        // raise onSetActiveScene event for system
+        if (system.onSetActiveScene !== undefined) {
+            system.onSetActiveScene(this.scene);
+        }
     }
 
     onViewportResize() {
@@ -65,7 +81,6 @@ export class Director {
 
     renderScene(dt) {
         this.#invokeAllRegisteredSystemCallbacks("renderScene", this.scene, this.renderer, dt);
-
     }
 
     onFixedStep() {
@@ -86,4 +101,47 @@ export class Director {
             system[name](...args);
         }
     }
+
+    #animationTickHandler = (timestamp) => {
+        if (!this.lastFrameTime) this.lastFrameTime = timestamp;
+        const elapsed = timestamp - this.lastFrameTime;
+
+        if (elapsed >= this.fpsInterval) {
+            this.RenderSignalEmitter.signalAll();
+            this.onFrameStart(elapsed);
+            this.onFixedStep(elapsed);
+            this.renderScene(elapsed);
+            this.lastFrameTime = timestamp - (elapsed % this.fpsInterval);
+        }
+
+        // Keep scheduling next animation frame
+        requestAnimationFrame(this.#animationTickHandler.bind(this));
+    }
+
+
+    setFpsTarget(fpsTarget) {
+        this.fpsTarget = fpsTarget;
+        this.fpsInterval = 1000 / this.fpsTarget;
+    }
+
+    start = () => {
+        // Requests first animation frame
+        requestAnimationFrame(this.#animationTickHandler.bind(this));
+    }
+}
+
+export const SimpleDirector = (color, stencil, depth) => {
+    const sceneCamera = new Camera();
+    const renderer = new Renderer(
+        color, stencil, depth, RendererPrefrences.default, sceneCamera
+    );
+    // renderer.preferences.wireframeMode = true;
+
+    const director = new Director();
+    director.setRenderer(renderer);
+    director.registerSystem(new PhysicsSystem());
+    director.registerSystem(sceneCamera);
+    director.registerSystem(new RenderSystem(renderer));
+
+    return director;
 }

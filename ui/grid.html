@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <style>
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        #grid-wrapper {
+            height: 100%;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-areas:
+                'header header header'
+                'left middle right'
+            ;
+            grid-template-columns: 1fr 3fr 1fr;
+            grid-template-rows: 1fr 4fr;
+            gap: 10px;
+            height: 100%
+        }
+
+        .grid-container.toggled {
+            grid-template-areas:
+                'header header header'
+                'middle middle middle';
+        }
+
+        .header {
+            grid-area: header;
+            background-color: #f00;
+        }
+
+        .left {
+            grid-area: left;
+            background-color: #0f0;
+        }
+
+        .middle {
+            grid-area: middle;
+            background-color: #00f;
+        }
+
+        .right {
+            grid-area: right;
+            display: grid;
+            grid-template-columns: 1fr;
+            grid-template-rows: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 10px;
+        }
+
+        .right>div {
+            background-color: #ff0;
+        }
+    </style>
+</head>
+
+<body>
+    <button id="toggle-button">Toggle Grid</button>
+    <div id="grid-wrapper">
+        <div class="grid-container">
+            <div class="header">Header</div>
+            <div class="left">Left</div>
+            <div class="middle">Middle</div>
+            <div class="right">
+                <div>Right 1</div>
+                <div>Right 2</div>
+                <div>Right 3</div>
+                <div>Right 4</div>
+                <div>Right 4</div>
+                <div>Right 4</div>
+                <div>Right 4</div>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

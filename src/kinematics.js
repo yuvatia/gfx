@@ -109,7 +109,7 @@ export class Rigidbody {
 
     getColliderType() {
         if (this.collider === null || this.collider.constructor === undefined) {
-            return ColliderType.BOX;
+            return Rigidbody.ColliderType.BOX;
         }
         switch (this.collider.constructor.name) {
             case "BoxCollider":
@@ -156,7 +156,7 @@ export class Rigidbody {
         // implicit euler - first velocity, then position
         // v' = v + a * dt
         this.linearVelocity = this.linearVelocity.add(this.force.scale(this.massInv).scale(dt));
-        
+
         // x' = v * dt
         this.transform.position = this.transform.position.add(this.linearVelocity.scale(dt));
         // R' = R * exp(omega*dt)

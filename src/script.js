@@ -1,5 +1,4 @@
 import { Cube, Icosahedron, Mesh, makeGrid, makeIcosphere, makeRect } from "./geometry.js";
-import { SignalEmitter } from "./signal_emitter.js";
 import { Point, Vector, Matrix } from "./math.js"
 import { DCELRepresentation } from "./halfmesh.js";
 import { BoxCollider, FollowConstraint, Rigidbody, SphereCollider } from "./kinematics.js";
@@ -7,7 +6,7 @@ import { RenderSystem, Renderer, RendererPrefrences } from "./renderer.js";
 import { Transform } from "./transform.js";
 import { PhysicsSystem } from "./physics.js";
 import { MeshFilter, Material, MeshRenderer, DirectionalLight } from "./components.js";
-import { Director } from "./Director.js";
+import { Director, SimpleDirector } from "./Director.js";
 import { Camera } from "./camera.js";
 import { MouseController } from "./MouseController.js";
 
@@ -153,64 +152,50 @@ const setupScene = (scene, entitiesCount, canvas) => {
     rb2.transform.position = rb4.transform.position.add(new Vector(0, 0, 150));
 }
 
-const main = () => {
-    // Used to signal render event
-    const signalEmitter = new SignalEmitter();
+class GameplaySystem {
+    #scene = null;
+    rbodies = [];
 
+    onSetActiveScene(scene) {
+        this.#scene = scene;
+    }
+
+    #spawnCube() {
+        this.rbodies.push(makeRigidBox(
+            this.#scene,
+            new Vector(-380, 320, 150), Vector.zero, new Vector(100, 100, 100),
+            10, // Mass
+            0.2  // Gravity
+        ));
+    }
+
+    onFixedStep(scene, renderer) {
+        // Make sure all rbodies are on the ground plane
+        this.rbodies.forEach((entityId) => {
+            const rb = this.#scene.getComponent(entityId, Rigidbody);
+            if (rb.transform.position.z < 0) {
+                rb.transform.position.z = 0;
+                rb.linearVelocity = Vector.zero;
+            }
+        });
+    }
+
+    onMouseClick(event) {
+        this.#spawnCube();
+    }
+}
+
+
+const main = () => {
     // Initialize renderer
     const canvas = document.getElementById("color");
     const stencil = document.getElementById("stencil");
     const depth = document.getElementById("depth");
 
-    const sceneCamera = new Camera();
-    const renderer = new Renderer(
-        canvas, stencil, depth, RendererPrefrences.default, sceneCamera
-    );
-    // renderer.preferences.wireframeMode = true;
-
-    const director = new Director();
-    director.setRenderer(renderer);
-    director.registerSystem(new PhysicsSystem());
-    director.registerSystem(sceneCamera);
-    director.registerSystem(new RenderSystem(renderer));
-    director.registerSystem(new MouseController(renderer));
-
-    class GameplaySystem {
-        #scene = null;
-        rbodies = [];
-
-        onSetActiveScene(scene) {
-            this.#scene = scene;
-        }
-
-
-        #spawnCube() {
-            this.rbodies.push(makeRigidBox(
-                this.#scene,
-                new Vector(-380, 320, 150), Vector.zero, new Vector(100, 100, 100),
-                10, // Mass
-                0.2  // Gravity
-            ));
-        }
-
-        onFixedStep(scene, renderer) {
-            // Make sure all rbodies are on the ground plane
-            this.rbodies.forEach((entityId) => {
-                const rb = this.#scene.getComponent(entityId, Rigidbody);
-                if (rb.transform.position.z < 0) {
-                    rb.transform.position.z = 0;
-                    rb.linearVelocity = Vector.zero;
-                }
-            });
-        }
-
-        onMouseClick(event) {
-            this.#spawnCube();
-        }
-    }
+    const director = SimpleDirector(canvas, stencil, depth);
+    director.registerSystem(new MouseController(director.renderer));
     director.registerSystem(new GameplaySystem());
-    director.raiseOnSetActiveScene();
-    bindSettingControls(renderer);
+    bindSettingControls(director.renderer);
 
     const scene = director.getScene();
     let entitiesCount = document.getElementById("entitiesCount").value;
@@ -220,28 +205,8 @@ const main = () => {
     });
     setupScene(scene, entitiesCount, canvas);
 
-    let lastFrameTime = null;
-    const fps = 60;
-    const fpsInterval = 1000 / fps;
-
-    const tick = (timestamp) => {
-        if (!lastFrameTime) lastFrameTime = timestamp;
-        const elapsed = timestamp - lastFrameTime;
-
-        if (elapsed >= fpsInterval) {
-            signalEmitter.signalAll();
-            director.onFrameStart(elapsed);
-            director.onFixedStep(elapsed);
-            director.renderScene(elapsed);
-            lastFrameTime = timestamp - (elapsed % fpsInterval);
-        }
-
-        // Keep scheduling next animation frame
-        requestAnimationFrame(tick);
-    }
-
-    // Requests first animation frame
-    requestAnimationFrame(tick);
+    director.setFpsTarget(60);
+    director.start();
 
     let entityListElement = document.getElementById("controlledEntity");
     const populateEntityList = (element) => {
