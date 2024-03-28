@@ -3,6 +3,8 @@ import { Camera } from "./camera.js";
 import { createTranslationMatrix, createaAxisAngleRotationMatrix, CreatePerspectiveProjection, CreateSymmetricOrthographicProjection, invertTranslation } from "./affine.js";
 import { DirectionalLight, Material, MeshFilter, MeshRenderer } from "./components.js";
 import { Transform } from "./transform.js";
+import { DCELRepresentation } from "./halfmesh.js";
+import { Cube } from "./geometry.js";
 
 export class RendererPrefrences {
     constructor() {
@@ -134,22 +136,25 @@ export class Renderer {
     }
 
     onViewportResize() {
+        // TODO delta from source
         // No need to resize canvas since responsiveness is guaranteed
-        this.canvas.width = window.innerWidth;
-        this.canvas.height = window.innerHeight;
+        const [newWidth, newHeight] = [window.innerWidth, window.innerHeight];
+
+        this.canvas.width = newWidth;
+        this.canvas.height = newHeight;
 
         // Translate so that origin is in the middle
         this.canvasTranslation.x = this.canvas.width * 0.5;
         this.canvasTranslation.y = this.canvas.height * 0.5;
         this.ctx.translate(this.canvasTranslation.x, this.canvasTranslation.y);
 
-        this.stencilBuffer.width = window.innerWidth;
-        this.stencilBuffer.height = window.innerHeight;
+        this.stencilBuffer.width = newWidth;
+        this.stencilBuffer.height = newHeight;
         this.stencilBufferCtx = this.stencilBuffer.getContext("2d", { willReadFrequently: true });
         this.stencilBufferCtx.translate(this.canvasTranslation.x, this.canvasTranslation.y);
 
-        this.depthBuffer.width = window.innerWidth;
-        this.depthBuffer.height = window.innerHeight;
+        this.depthBuffer.width = newWidth;
+        this.depthBuffer.height = newHeight;
         this.depthBufferCtx = this.depthBuffer.getContext("2d");
         this.depthBufferCtx.translate(this.canvasTranslation.x, this.canvasTranslation.y);
 
@@ -496,12 +501,14 @@ class BasicShader {
                 }
             }
             finalDiffuse =
-                typeof finalDiffuse === String ?
+                typeof finalDiffuse === 'string' ?
                     finalDiffuse :
                     `rgba(${finalDiffuse.x}, ${finalDiffuse.y}, ${finalDiffuse.z}, 1)`;
 
             let outlineColor = finalDiffuse;
-            if (Number(document.getElementById("controlledEntity").value) === entityId) {
+            // TODO
+            // if (Number(document.getElementById("controlledEntity").value) === entityId) {
+            if (0 === entityId) {
                 outlineColor = "red";
             }
 
@@ -556,6 +563,8 @@ class BasicShader {
     }
 }
 
+const DefaultMeshRef = DCELRepresentation.fromSimpleMesh(new Cube());
+
 export class RenderSystem {
     constructor() {
     }
@@ -575,7 +584,7 @@ export class RenderSystem {
                 scene.getComponent(entId, MeshFilter),
                 scene.getComponent(entId, Material)];
             transform.validateWorldMatrix();
-            return [transform.toWorldMatrix(), meshFilter.meshRef, material, entId];
+            return [transform.toWorldMatrix(), meshFilter.meshRef || DefaultMeshRef, material, entId];
         });
 
         const directionalLightSources = scene.getView(DirectionalLight).map(entityId => scene.getComponent(entityId, DirectionalLight));
@@ -591,9 +600,11 @@ export class RenderSystem {
         //     const bCameraSpace = renderer.worldToEye(bWorldPos);
         //     return aCameraSpace.z - bCameraSpace.z;
         // });
-        
+
         frameRenderInfo.forEach((
             [modelMatrix, meshRef, material, entId]) => this.shader.drawMesh(meshRef, modelMatrix, material, entId)
         );
+        
+        console.log("scene");
     }
 }

@@ -79,13 +79,29 @@ export class MeshCollider {
 }
 
 export class Rigidbody {
-    constructor(transform, mass, linearVelocity = null, angularVelocity = null, collider = null) {
-        this.transform = transform;
-        this.mass = mass;
-        this.massInv = mass === 0 ? 0 : 1 / mass;
+    mass = 1;
+    #massInv = 1;  // Not editable
+    transform = null;
 
-        this.linearVelocity = linearVelocity || new Vector(1, 0, 0);
-        this.angularVelocity = angularVelocity || new Vector(1000, 3000, 0);
+    linearVelocity = new Vector(0, 0, 0);
+    angularVelocity = new Vector(1000, 3000, 0);
+
+    friction = 1.0;
+    restitution = 0.0;
+
+    angularDamping = 0.999;
+    linearDamping = 0.999;
+
+    gravityScale = 0.0;
+
+    collider = null; // Not editable at the moment sadly?
+
+    constructor(transform = null, mass = 1, linearVelocity = null, angularVelocity = null, collider = null) {
+        this.setTransform(transform);
+        this.setMass(mass);
+
+        this.linearVelocity = linearVelocity || new Vector(0, 0, 0);
+        this.angularVelocity = angularVelocity || new Vector(0, 0, 0);
 
         this.friction = 1.0;
         this.restitution = 0;
@@ -107,6 +123,10 @@ export class Rigidbody {
         MESH: "mesh"
     };
 
+    setTransform(transform) {
+        this.transform = transform;
+    }
+
     getColliderType() {
         if (this.collider === null || this.collider.constructor === undefined) {
             return Rigidbody.ColliderType.BOX;
@@ -121,6 +141,10 @@ export class Rigidbody {
         }
     }
 
+    get massInv() {
+        return this.#massInv;
+    }
+
     getInverseInertiaTensor() {
         switch (this.getColliderType()) {
             case Rigidbody.ColliderType.SPHERE:
@@ -133,7 +157,7 @@ export class Rigidbody {
 
     setMass(newMass) {
         this.mass = newMass;
-        this.invMass = this.mass === 0 ? 0 : 1 / this.mass;
+        this.#massInv = this.mass === 0 ? 0 : 1 / this.mass;
     }
 
     integratePosition(dt) {
@@ -155,7 +179,7 @@ export class Rigidbody {
     integratePositionPhysicallyAccurate(dt) {
         // implicit euler - first velocity, then position
         // v' = v + a * dt
-        this.linearVelocity = this.linearVelocity.add(this.force.scale(this.massInv).scale(dt));
+        this.linearVelocity = this.linearVelocity.add(this.force.scale(this.#massInv).scale(dt));
 
         // x' = v * dt
         this.transform.position = this.transform.position.add(this.linearVelocity.scale(dt));

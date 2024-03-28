@@ -68,7 +68,7 @@ const makeRigidBox = (
     return entityId;
 }
 
-const setupScene = (scene, entitiesCount, canvas) => {
+export const setupScene = (scene, entitiesCount, canvas) => {
     if (entitiesCount < 4) {
         entitiesCount = 4;
     }

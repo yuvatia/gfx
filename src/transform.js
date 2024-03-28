@@ -2,6 +2,12 @@ import { createTransformationMatrix, createTranslationMatrix, createScaleMatrix,
 import { Vector } from "./math.js";
 
 export class Transform {
+    position = null;
+    rotation = null;
+    scale = null;
+
+    overridenRotationMatrix = null;
+
     constructor(position = Vector.zero, rotation = Vector.zero, scale = Vector.one) {
         this.position = position.clone();
         this.rotation = rotation.clone();

@@ -4,6 +4,7 @@ import { Matrix, Vector } from "./math.js";
 import { Contact } from "./oven/contact.js";
 import { createContacts } from "./sat_contact_creation.js";
 import { Sphere } from "./shape_queries.js";
+import { Transform } from "./transform.js";
 
 const getMeshMeshManifold = (
     s1HalfMesh,
@@ -43,7 +44,7 @@ const getMeshMeshManifold = (
 
 export class PhysicsPreferences {
     gravity = 9.8;
-    clipStepsCount = 99; //Number(document.getElementById("clipStepsCount").value);
+    clipStepsCount = 99;
 }
 
 export class PhysicsSystem {
@@ -59,6 +60,10 @@ export class PhysicsSystem {
 
         // Collect collision constraints from last frame
         this.#rigidBodies = scene.getComponentView(Rigidbody);
+        // Update all Transform refs in rbodies
+        this.#rigidBodies.forEach(([entId, [rb]]) => {
+            rb.setTransform(scene.getComponent(entId, Transform));
+        });
         this.#collectCollisions(debugRenderer);
     }
 

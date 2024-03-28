@@ -32,7 +32,8 @@ export class Director {
         targetCanvas.addEventListener('click', this.onMouseClick.bind(this));
         targetCanvas.addEventListener('mouseup', this.onMouseUp.bind(this));
         targetCanvas.addEventListener('mousedown', this.onMouseDown.bind(this));
-        targetCanvas.addEventListener('mousemove', this.onMouseMove.bind(this));
+        targetCanvas.addEventListener('mousemove', this.onMouseMove.bind(this))
+
 
         // Renderer is also treated as a system
         this.registerSystem(renderer);

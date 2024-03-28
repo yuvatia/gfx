@@ -1,6 +1,6 @@
 import { Transform } from "./transform.js";
 
-class Tag {
+export class Tag {
     name = "Empty";
 }
 
@@ -90,16 +90,13 @@ export class Scene {
         if (index === this.#InvalidEntityIndex) {
             return false;
         }
-        if (index >= this.entities.length) {
-            return false;
-        }
         const entity = this.entities[index];
         return entity && entity.id === entityId;
     }
 
     isEntityIdValid(entityId) {
         const index = this.#entityIdToIndex(entityId);
-        return index !== this.#InvalidEntityIndex;
+        return index !== this.#InvalidEntityIndex && index < this.entities.length;
     }
 
     createNewEntityId(index, generation) {
@@ -107,7 +104,7 @@ export class Scene {
     }
 
     entityIdToEntity(entityId) {
-        if (!this.isEntityValid(entityId)) {
+        if (!this.isEntityIdValid(entityId)) {
             return null;
         }
         const index = this.#entityIdToIndex(entityId);
@@ -134,16 +131,19 @@ export class Scene {
     }
 
     addComponent(entityId, type, ...args) {
+        if (!this.isEntityValid(entityId)) return;
         const component = new type(...args);
         this.entityIdToEntity(entityId).components[type.name] = component;
         return component;
     }
 
     removeComponent(entityId, type) {
+        if (!this.isEntityValid(entityId)) return;
         this.entityIdToEntity(entityId).components[type.name] = undefined;
     }
 
     getComponent(entityId, type) {
+        if (!this.isEntityValid(entityId)) return null;
         return this.entityIdToEntity(entityId).components[type.name];
     }
 
@@ -158,6 +158,7 @@ export class Scene {
     }
 
     hasComponent(entityId, type) {
+        if (!this.isEntityValid(entityId)) return false;
         return this.entityIdToEntity(entityId).hasComponent(type);
     }
 
