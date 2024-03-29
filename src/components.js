@@ -20,6 +20,10 @@ export class Tag extends Component {
 export class UUID extends Serializable {
     value = null;
 
+    constructor() {
+        super();
+    }
+
     static create() {
         const instance = new UUID();
         const value = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {

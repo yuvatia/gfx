@@ -52,6 +52,11 @@ export class Scene extends Serializable {
         this.#freelist = []
     }
 
+    getValuesDict() {
+        // Discard all invalid entities
+        return { entities: this.getEntities() };
+    }
+
     initialize() {
         // The entity IDs should be fixed after deserialization
         // Each ID is 1st generation and the index matches the index into entities, so
@@ -87,7 +92,8 @@ export class Scene extends Serializable {
     }
 
     getName(entityId) {
-        return this.getComponent(entityId, Tag).name;
+        const tag = this.getComponent(entityId, Tag);
+        return tag.name;
     }
 
 
@@ -100,6 +106,7 @@ export class Scene extends Serializable {
     }
 
     getByUUID(uuid) {
+        if (!uuid || uuid === UUID.empty || uuid.value === null) return null;
         const entity = this.getEntities().find(entity => UUID.equals(entity.uuid, uuid));
         if (!entity) {
             return null;
@@ -183,16 +190,23 @@ export class Scene extends Serializable {
     }
 
     cloneEntity(entityId) {
+        if (!this.isEntityValid(entityId)) return null;
+
         // Serialize, then deserialize
         const entity = this.entityIdToEntity(entityId);
         const serialized = JSON.stringify(entity);
         const deserialized = JSON.parse(serialized, Reviever.parse);
+
         // Assign new UUID
         deserialized.components[UUIDComponent.name].uuid = UUID.create();
+
         // Clone into next entity
-        const newEntity = this.newEntity();
+        const newEntityId = this.newEntity();
+        const newEntity = this.entityIdToEntity(newEntityId);
         newEntity.components = deserialized.components;
-        return newEntity;
+        newEntity.components[Tag.name].name += ' (Clone)';
+
+        return newEntityId;
     }
 
     deepCopy() {

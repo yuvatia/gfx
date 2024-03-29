@@ -1,5 +1,5 @@
 import { createScaleMatrix, decomposeRotationXYZ, invertRotation, reOrthogonalizeRotation } from "./affine.js";
-import { Component, UUIDComponent } from "./components.js";
+import { Component, UUID, UUIDComponent } from "./components.js";
 import { Cube } from "./geometry.js";
 import { DCELRepresentation } from "./halfmesh.js";
 import { Matrix, Vector } from "./math.js";
@@ -363,15 +363,15 @@ export const frameConstraint1Broken = (rb, r, p, dt) => {
 
 
 export class FollowConstraint extends Component {
-    rb1ID = null;  // tethered
-    rb2ID = null;  // tether
+    rb1ID = UUID.empty;  // tethered
+    rb2ID = UUID.empty;  // tether
     rb1Anchor = Vector.zero; // in rb1 local space
 
     #rb1 = new Rigidbody();  // tethered
     #rb2 = new Rigidbody();  // tether
 
 
-    constructor(rb1ID = null, rb2ID = null, rb1Anchor = Vector.zero) {
+    constructor(rb1ID = UUID.empty, rb2ID = UUID.empty, rb1Anchor = Vector.zero) {
         super();
 
         this.rb1ID = rb1ID;

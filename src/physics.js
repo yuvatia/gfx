@@ -18,7 +18,9 @@ const getMeshMeshManifold = (
 
     // Run collision detection between selected and another entity
     const { result: separating, info } = CollisionDetection.SATEx(s1HalfMesh, s2HalfMesh, s1Matrix, s2Matrix);
-    renderer.drawText(renderer.canvas.width / 2 - 200, 60 - renderer.canvas.height / 2, `Separating: ${separating}\nDepth:${info ? info.depth : "N/A"}`, 15, "black", "bold 15px Arial");
+    if (renderer) {
+        renderer.drawText(renderer.canvas.width / 2 - 200, 60 - renderer.canvas.height / 2, `Separating: ${separating}\nDepth:${info ? info.depth : "N/A"}`, 15, "black", "bold 15px Arial");
+    }
     if (!separating) {
         const contacts = createContacts(
             s1HalfMesh,
@@ -45,6 +47,7 @@ const getMeshMeshManifold = (
 export class PhysicsPreferences {
     gravity = 9.8;
     clipStepsCount = 99;
+    visualize = false;
 }
 
 export class PhysicsSystem {
@@ -62,6 +65,10 @@ export class PhysicsSystem {
             const rb1 = scene.getComponentByUUID(constraint.rb1ID, Rigidbody);
             const rb2 = scene.getComponentByUUID(constraint.rb2ID, Rigidbody);
             constraint.setRigidbodies(rb1, rb2);
+        });
+        // If any of the constraints have no rbodies then remove them
+        this.#followConstraints = this.#followConstraints.filter(([, [constraint]]) => {
+            return constraint.rb1 && constraint.rb2;
         });
 
         // Collect collision constraints from last frame
@@ -177,7 +184,7 @@ export class PhysicsSystem {
 
         // validate active constraints & collect new ones
         // Collect all follow constraints
-        this.#collectConstraints(scene, debugRenderer);
+        this.#collectConstraints(scene, this.preferences.visualize ? debugRenderer : null);
 
         // apply forces
         this.#rigidBodies.forEach(([entId, [rb]]) => {
@@ -189,11 +196,10 @@ export class PhysicsSystem {
 
         // solve constraints, collisions last
         this.#solveConstraints(fixedStep);
-        this.#solveCollisions(debugRenderer, fixedStep);
+        this.#solveCollisions(this.preferences.visualize ? debugRenderer : null, fixedStep);
 
         // update positions
         // Finally, integrate position
         this.integratePosition(fixedStep);
-
     }
 }

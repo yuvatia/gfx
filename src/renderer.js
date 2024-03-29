@@ -12,7 +12,8 @@ export class RendererPrefrences {
         this.shadingEnabled = true;
         this.perspectiveClipEnabled = true;
 
-        this.clearColors = "rgba(0, 0, 255, 0.1)";
+        // this.clearColors = "rgba(0, 0, 255, 0.1)";
+        this.clearColors = "transparent";
 
         this.wireframeMode = false;
     }

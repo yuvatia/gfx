@@ -1,12 +1,46 @@
 import { Camera } from "./camera.js";
+import { DirectionalLight, Material, MeshFilter, MeshRenderer, Tag, UUID, UUIDComponent } from "./components.js";
+import { Mesh } from "./geometry.js";
+import { DCELRepresentation } from "./halfmesh.js";
+import { FollowConstraint, Rigidbody } from "./kinematics.js";
+import { Matrix, Point, Vector } from "./math.js";
 import { PhysicsSystem } from "./physics.js";
 import { RenderSystem, Renderer, RendererPrefrences } from "./renderer.js";
 import { Scene } from "./scene.js";
 import { SignalEmitter } from "./signal_emitter.js";
+import { Transform } from "./transform.js";
+
+
+const SetupSerialization = () => {
+    // Instantiate a new instance of all serialzable classes.
+    // This is necessary to register all classes with the reviver
+    new Point();
+    new Vector();
+    new Matrix();
+
+    new Scene();
+
+    new UUID();
+
+    new DCELRepresentation();
+    new Mesh();
+
+    new UUIDComponent();
+    new Tag();
+    new Transform();
+    new MeshRenderer();
+    new Material();
+    new DirectionalLight();
+    new MeshFilter();
+    new Rigidbody();
+    new FollowConstraint();
+}
 
 
 export class Director {
     constructor() {
+        SetupSerialization();
+
         this.systems = [];
         this.systemStates = {};  // Name to state, state is either true or false (on or off)
         this.scene = new Scene();
