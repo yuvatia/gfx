@@ -4,7 +4,7 @@ import { createTranslationMatrix, createaAxisAngleRotationMatrix, CreatePerspect
 import { DirectionalLight, Material, MeshFilter, MeshRenderer } from "./components.js";
 import { Transform } from "./transform.js";
 import { DCELRepresentation } from "./halfmesh.js";
-import { Cube } from "./geometry.js";
+import { Cube, Mesh } from "./geometry.js";
 
 export class RendererPrefrences {
     constructor() {
@@ -457,9 +457,9 @@ class BasicShader {
 
     drawMesh = (mesh, modelMatrix, material, entityId) => {
         const renderPrefs = this.scene.getComponent(entityId, MeshRenderer) || MeshRenderer.default;
-        if (mesh.constructor.name === "Mesh") {
+        if (mesh.constructor === Mesh) {
             this.drawSimpleMesh(mesh, modelMatrix, material, entityId, renderPrefs);
-        } else if (mesh.constructor.name === "DCELRepresentation") {
+        } else if (mesh.constructor === DCELRepresentation) {
             this.drawMeshDCEL(mesh, modelMatrix, material, entityId, renderPrefs)
         }
     }

@@ -139,12 +139,12 @@ export class Rigidbody extends Component {
         if (this.collider === null || this.collider.constructor === undefined) {
             return Rigidbody.ColliderType.BOX;
         }
-        switch (this.collider.constructor.name) {
-            case "BoxCollider":
+        switch (this.collider.constructor) {
+            case BoxCollider:
                 return Rigidbody.ColliderType.BOX;
-            case "SphereCollider":
+            case SphereCollider:
                 return Rigidbody.ColliderType.SPHERE;
-            case "MeshCollider":
+            case MeshCollider:
                 return Rigidbody.ColliderType.MESH;
         }
     }

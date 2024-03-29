@@ -35,7 +35,7 @@ class Entity extends Serializable {
     }
 
     get uuid() {
-        return this.components.UUIDComponent.uuid;
+        return this.components[UUIDComponent.name].uuid;
     }
 
 }
@@ -86,12 +86,17 @@ export class Scene extends Serializable {
         this.getEntities().map(entity => this.destroyEntity(entity.id));
     }
 
+    getName(entityId) {
+        return this.getComponent(entityId, Tag).name;
+    }
+
+
     getFirstByName(name) {
-        return this.getEntities().find(entity => entity.components.Tag.name === name).id;
+        return this.getEntities().find(entity => this.getName(entity.id) === name).id;
     }
 
     getAllByName(name) {
-        return this.getEntities().filter(entity => entity.components.Tag.name === name).map(entity => entity.id);
+        return this.getEntities().filter(entity => this.getName(entity.id) === name).map(entity => entity.id);
     }
 
     getByUUID(uuid) {
@@ -183,7 +188,7 @@ export class Scene extends Serializable {
         const serialized = JSON.stringify(entity);
         const deserialized = JSON.parse(serialized, Reviever.parse);
         // Assign new UUID
-        deserialized.components.UUIDComponent.uuid = UUID.create();
+        deserialized.components[UUIDComponent.name].uuid = UUID.create();
         // Clone into next entity
         const newEntity = this.newEntity();
         newEntity.components = deserialized.components;
