@@ -232,6 +232,16 @@ export class Scene extends Serializable {
         return this.entityIdToEntity(entityId).components[type.name];
     }
 
+    forceGetComponent(entityId, type) {
+        if (!this.isEntityValid(entityId)) {
+            return null;
+        }
+        if (!this.hasComponent(entityId, type)) {
+            return this.addComponent(entityId, type);
+        }
+        return this.getComponent(entityId, type);
+    }
+
     getAllComponents(entityId, ...types) {
         const typeKeys = types.forEach(t => t.name);
         const components = this.entityIdToEntity(entityId).components;

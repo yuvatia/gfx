@@ -203,7 +203,6 @@ const main = () => {
     const depth = document.getElementById("depth");
 
     const director = SimpleDirector(canvas, stencil, depth);
-    director.registerSystem(new MouseController(director.renderer));
     director.registerSystem(new GameplaySystem());
     bindSettingControls(director.renderer);
 

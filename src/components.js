@@ -74,6 +74,7 @@ export class Material extends Component {
 }
 export class MeshRenderer extends Component {
     shading = true;
+    outline = false;
     wireframe = null; // Default to global settings
     writeIdToStencil = true; // Writes entityId to stencil for mousepicking
     static default = new MeshRenderer();

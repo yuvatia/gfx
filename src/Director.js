@@ -1,3 +1,4 @@
+import { MouseController } from "./MouseController.js";
 import { Camera } from "./camera.js";
 import { DirectionalLight, Material, MeshFilter, MeshRenderer, Tag, UUID, UUIDComponent } from "./components.js";
 import { Mesh } from "./geometry.js";
@@ -83,10 +84,14 @@ export class Director {
         targetCanvas.addEventListener('wheel', this.onMouseScroll.bind(this));
         document.addEventListener('keydown', this.onKeydownEvent.bind(this));
         targetCanvas.addEventListener('click', this.onMouseClick.bind(this));
+
         targetCanvas.addEventListener('mouseup', this.onMouseUp.bind(this));
         targetCanvas.addEventListener('mousedown', this.onMouseDown.bind(this));
-        targetCanvas.addEventListener('mousemove', this.onMouseMove.bind(this))
+        targetCanvas.addEventListener('mousemove', this.onMouseMove.bind(this));
 
+        targetCanvas.addEventListener('touchend', this.onMouseUp.bind(this));
+        targetCanvas.addEventListener('touchstart', this.onMouseDown.bind(this));
+        targetCanvas.addEventListener('touchmove', this.onMouseMove.bind(this));
 
         // Renderer is also treated as a system
         this.registerSystem(renderer);
@@ -213,6 +218,7 @@ export const SimpleDirector = (color, stencil, depth, autoEnablePhysics = true) 
     director.registerSystem(new PhysicsSystem(), autoEnablePhysics);
     director.registerSystem(sceneCamera);
     director.registerSystem(new RenderSystem(renderer));
+    director.registerSystem(new MouseController(renderer));
 
     return director;
 }

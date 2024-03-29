@@ -507,10 +507,12 @@ class BasicShader {
                     `rgba(${finalDiffuse.x}, ${finalDiffuse.y}, ${finalDiffuse.z}, 1)`;
 
             let outlineColor = finalDiffuse;
-            // TODO
-            // if (Number(document.getElementById("controlledEntity").value) === entityId) {
-            if (0 === entityId) {
+            if (renderPrefs.outline) {
                 outlineColor = "red";
+                // Make outline wide
+                this.renderer.ctx.lineWidth = 2;
+            } else {
+                this.renderer.ctx.lineWidth = 1;
             }
 
             return this.renderer.drawPath(

@@ -1,13 +1,18 @@
+import { MeshRenderer } from "./components.js";
 import { Vector } from "./math.js";
 import { Renderer } from "./renderer.js";
 import { Transform } from "./transform.js";
 
 export class MouseController {
+    static CameraId = -1;
+
     #dragStart = null;
     #dragStop = null;
-    #controlledEntityID = -1; // Camera
+    #controlledEntityID = MouseController.CameraId; // Camera
     #renderer = null;
     #scene = null;
+
+    longPressTimer = null;
 
     constructor(renderer) {
         this.#renderer = renderer;
@@ -18,37 +23,88 @@ export class MouseController {
     }
 
     setControlledEntity(entityId) {
+        const setMeshRendererState = (entityId, state) => {
+            const mr = this.#scene.forceGetComponent(entityId, MeshRenderer);
+            if (!mr) return false;
+            mr.outline = state;
+            return true;
+        }
+
+        setMeshRendererState(this.#controlledEntityID, false);
         this.#controlledEntityID = entityId;
+        setMeshRendererState(this.#controlledEntityID, true);
     }
 
     getControlledEntity() {
         return this.#controlledEntityID;
     }
 
-    onMouseClick(event) {
-        if (event.ctrlKey) {
-            const stencilPixelValue = this.#renderer.pickBufferPixelAtPosition(Renderer.BufferType.STENCIL, event.clientX, event.clientY);
-            // map 255 to -1 === camera
-            const selectedEntity = stencilPixelValue[2] != 255 ? stencilPixelValue[2] : -1;
-            document.getElementById("controlledEntity").value = `${selectedEntity}`;
-            this.setControlledEntity(selectedEntity);
+    #extractRelevantDataFromEvent(event) {
+        // If it's a touch event, get first touch
+        if (event.touches && event.touches.length > 0) {
+            event = event.touches[0];
+        } else if (event.changedTouches) {
+            event = event.changedTouches[0];
         }
+        return { clientX: event.clientX, clientY: event.clientY };
+    }
+
+    selectEntityAtClientXY(clientX, clientY) {
+        const selectedEntity = this.getEntityAtClientXY(clientX, clientY);
+        this.setControlledEntity(selectedEntity);
+    }
+
+    getEntityAtClientXY(clientX, clientY) {
+        const stencilPixelValue = this.#renderer.pickBufferPixelAtPosition(Renderer.BufferType.STENCIL, clientX, clientY);
+        // map 255 to -1 === camera
+        const selectedEntity = stencilPixelValue[2] != 255 ? stencilPixelValue[2] : MouseController.CameraId;
+        return selectedEntity;
+    }
+
+    isEntityAtClientXYDifferentThanSelected(clientX, clientY) {
+        const selectedEntity = this.getEntityAtClientXY(clientX, clientY);
+        return this.#controlledEntityID !== selectedEntity;
+    }
+
+    onMouseClick(event) {
+        if (!event.ctrlKey) return;
+        event.preventDefault();
+        const { clientX, clientY } = this.#extractRelevantDataFromEvent(event);
+        this.selectEntityAtClientXY(clientX, clientY);
     }
 
     onMouseDown(event) {
-        this.#dragStart = this.#renderer.mouseToCanvas(event.clientX, event.clientY);
+        const { clientX, clientY } = this.#extractRelevantDataFromEvent(event);
+        // Attempt to predict user intent
+        if (this.isEntityAtClientXYDifferentThanSelected(clientX, clientY)) {
+            event.preventDefault();
+        }
+        const predictedEntity = this.getEntityAtClientXY(clientX, clientY);
+        this.longPressTimer = setTimeout(() => {
+            if (this.getEntityAtClientXY(clientX, clientY) === predictedEntity) {
+                this.selectEntityAtClientXY(clientX, clientY);
+            }
+        }, 200);
+        this.#dragStart = this.#renderer.mouseToCanvas(clientX, clientY);
+        this.#dragStop = null;
     }
 
     onMouseMove(event) {
         if (!this.#dragStart) return;
 
-        this.#dragStop = this.#renderer.mouseToCanvas(event.clientX, event.clientY);
+        event.preventDefault();
+        const { clientX, clientY } = this.#extractRelevantDataFromEvent(event);
+        const lastDragStop = this.#dragStop || this.#dragStart;
+        this.#dragStop = this.#renderer.mouseToCanvas(clientX, clientY);
+
 
         let targetID = this.getControlledEntity();
         // If the shift key is also pressed, treat it as translating the camera
-        if (event.shiftKey) {
+        const isTranslation = event.shiftKey || (event.touches && event.touches.length > 1);
+        if (isTranslation) {
             // TODO handedness -> negation
-            let delta = new Vector(-event.movementX, -event.movementY, 0);
+            const delta = lastDragStop.sub(this.#dragStop);
+            // let d = new Vector(-event.movementX, -event.movementY, 0);
             let target = targetID == -1 ? this.#renderer.camera.transform : this.#scene.getComponent(targetID, Transform);
             target.adjustPosition(delta);
         } else {
@@ -68,7 +124,12 @@ export class MouseController {
     }
 
     onMouseUp(event) {
+        if (this.longPressTimer) {
+            clearTimeout(this.longPressTimer);
+            this.longPressTimer = null;
+        }
         this.#dragStart = null;
-        this.#dragStop = this.#renderer.mouseToCanvas(event.clientX, event.clientY);
+        const { clientX, clientY } = this.#extractRelevantDataFromEvent(event);
+        this.#dragStop = this.#renderer.mouseToCanvas(clientX, clientY);
     }
 }
