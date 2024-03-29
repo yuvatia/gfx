@@ -31,22 +31,23 @@ export class Serializable {
 export class Reviever {
     // When encoutering a type key, reviver will first
     // opt for instantiating a specialization
-    static #specializations = {};
+    static specializations_ = {};
 
     static register(type) {
-        this.#specializations[type.name] = type;
+        this.specializations_[type.name] = type;
     }
 
     static get specializations() {
-        return this.#specializations;
+        // Babel complains about this being a private field
+        return this.specializations_;
     }
 
     // This is a reviver which can be passed to JSON.parse
     static parse(key, value) {
         // Value will be {"type": "Type", "value": {...}}
         // First try to load value if it is a string
-        if (value && value.type in Reviever.#specializations) {
-            const type = Reviever.#specializations[value.type];
+        if (value && value.type in Reviever.specializations) {
+            const type = Reviever.specializations[value.type];
             const instance = new type().fromJSON(value.value);
             return instance;
         }

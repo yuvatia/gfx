@@ -1,5 +1,5 @@
 import { Tag, UUID, UUIDComponent } from "./components.js";
-import { Serializable } from "./reviver.js";
+import { Reviever, Serializable } from "./reviver.js";
 import { Transform } from "./transform.js";
 
 class Entity extends Serializable {
@@ -175,6 +175,25 @@ export class Scene extends Serializable {
         entity.components = {};
         // Add to list of free entities
         this.#freelist.push(index);
+    }
+
+    cloneEntity(entityId) {
+        // Serialize, then deserialize
+        const entity = this.entityIdToEntity(entityId);
+        const serialized = JSON.stringify(entity);
+        const deserialized = JSON.parse(serialized, Reviever.parse);
+        // Assign new UUID
+        deserialized.components.UUIDComponent.uuid = UUID.create();
+        // Clone into next entity
+        const newEntity = this.newEntity();
+        newEntity.components = deserialized.components;
+        return newEntity;
+    }
+
+    deepCopy() {
+        const serialized = JSON.stringify(this);
+        const deserialized = JSON.parse(serialized, Reviever.parse);
+        return deserialized;
     }
 
     addComponent(entityId, type, ...args) {

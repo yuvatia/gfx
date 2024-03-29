@@ -34,6 +34,10 @@ export class Director {
         this.systemStates[systemName] = enabled;
     }
 
+    toggleSystemState(systemName) {
+        this.setSystemState(systemName, !this.getSystemState(systemName));
+    }
+
     getSystemState(systemName) {
         return this.systemStates[systemName];
     }
@@ -129,6 +133,7 @@ export class Director {
 
     #invokeAllRegisteredSystemCallbacks(eventName, ...args) {
         for (let system of this.systems) {
+            if (!this.getSystemState(system.constructor.name)) continue;
             if (!system[eventName]) continue;
             system[eventName](...args);
         }
