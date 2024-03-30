@@ -46,6 +46,9 @@ const getMeshMeshManifold = (
 
 export class PhysicsPreferences {
     gravity = 9.8;
+    solveCollisions = true;
+    solveConstraints = true;
+    updateRigidbodies = true;
     clipStepsCount = 99;
     visualize = false;
 }
@@ -59,25 +62,30 @@ export class PhysicsSystem {
     #rigidBodies = [];
 
     #collectConstraints(scene, debugRenderer) {
-        this.#followConstraints = scene.getComponentView(FollowConstraint);
-        // Collect UUIDComponent matching followConstraint id
-        this.#followConstraints.map(([, [constraint]]) => {
-            const rb1 = scene.getComponentByUUID(constraint.rb1ID, Rigidbody);
-            const rb2 = scene.getComponentByUUID(constraint.rb2ID, Rigidbody);
-            constraint.setRigidbodies(rb1, rb2);
-        });
-        // If any of the constraints have no rbodies then remove them
-        this.#followConstraints = this.#followConstraints.filter(([, [constraint]]) => {
-            return constraint.rb1 && constraint.rb2;
-        });
+        if (this.preferences.solveConstraints) {
+            this.#followConstraints = scene.getComponentView(FollowConstraint);
+            // Collect UUIDComponent matching followConstraint id
+            this.#followConstraints.map(([, [constraint]]) => {
+                const rb1 = scene.getComponentByUUID(constraint.rb1ID, Rigidbody);
+                const rb2 = scene.getComponentByUUID(constraint.rb2ID, Rigidbody);
+                constraint.setRigidbodies(rb1, rb2);
+            });
+            // If any of the constraints have no rbodies then remove them
+            this.#followConstraints = this.#followConstraints.filter(([, [constraint]]) => {
+                return constraint.rb1 && constraint.rb2;
+            });
+        }
 
-        // Collect collision constraints from last frame
-        this.#rigidBodies = scene.getComponentView(Rigidbody);
         // Update all Transform refs in rbodies
+        this.#rigidBodies = scene.getComponentView(Rigidbody);
         this.#rigidBodies.forEach(([entId, [rb]]) => {
             rb.setTransform(scene.getComponent(entId, Transform));
         });
-        this.#collectCollisions(debugRenderer);
+
+        // Collect collision constraints from last frame
+        if (this.preferences.solveCollisions) {
+            this.#collectCollisions(debugRenderer);
+        }
     }
 
     #solveConstraints(fixedStep) {
@@ -173,6 +181,7 @@ export class PhysicsSystem {
     }
 
     integratePosition(dt) {
+        if (!this.preferences.updateRigidbodies) return;
         for (let [, [rbody]] of this.#rigidBodies) {
             rbody.integratePositionPhysicallyAccurate(dt);
             rbody.transform.validateWorldMatrix();

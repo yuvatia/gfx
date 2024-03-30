@@ -1,5 +1,5 @@
-import { Vector } from "./math.js";
-import { CreatePerspectiveProjection, CreateSymmetricOrthographicProjection, createTransformationMatrix } from "./affine.js";
+import { Vector, lerp } from "./math.js";
+import { CreateLookAtView, CreatePerspectiveProjection, CreateSymmetricOrthographicProjection, createTransformationMatrix, getRotationAxes } from "./affine.js";
 import { Transform } from "./transform.js";
 
 export class CameraSettings {
@@ -18,12 +18,14 @@ export class CameraSettings {
 export class Camera {
     constructor(
         transform = new Transform(
-            new Vector(150, -20, -1000),
-            new Vector(50, 0, 0),
+            new Vector(-150, 20, -1000),
+            new Vector(0, 0, 0),
             new Vector(1, 1, 1)),
         settings = CameraSettings.default) {
         this.transform = transform;
         this.validateViewMatrix();
+
+        this.focalPoint = Vector.zero;
 
         this.settings = settings;
 
@@ -83,10 +85,41 @@ export class Camera {
 
     onMouseScroll(event) {
         event.preventDefault();
-        this.transform.adjustPosition(new Vector(0, 0, event.deltaY));
+        const [x, y, z] = getRotationAxes(this.transform.getViewMatrix());
+        this.transform.adjustPosition(z.scale(event.deltaY));
     };
 
     validateViewMatrix() {
+        this.viewMatrix = this.transform.getViewMatrix();
+    }
+
+    onSetActiveScene() {
+        clearInterval(this.interval);
+    }
+
+    easeMoveToPosition(position, duration = 50, steps = 10) {
+        this.count = 0;
+        clearInterval(this.interval);
+        const start = this.transform.position;
+        const end = position;
+        this.interval = setInterval(() => {
+            this.count++;
+            this.transform.position = lerp(start, end, this.count / steps);
+            if (this.count === steps) {
+                clearInterval(this.interval);
+            }
+        }, duration / steps);
+
+    }
+
+    lookAt(target) {
+        this.focalPoint = target;
+
+        const up = getRotationAxes(this.transform.getViewMatrix())[1]; // y
+        // const up = new Vector(0, 1, 0);
+        const { position, rotationMatrix } = CreateLookAtView(this.transform.position, target, up);
+        this.easeMoveToPosition(position);
+        this.transform.overridenRotationMatrix = rotationMatrix;
         this.viewMatrix = this.transform.getViewMatrix();
     }
 

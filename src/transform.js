@@ -58,8 +58,14 @@ export class Transform extends Component {
     }
 
     getViewMatrix() {
+        const viewT = this.position.neg();
+        // const viewT = new Vector(this.position.x, this.position.y, -this.position.z);
+        if (this.overridenRotationMatrix) {
+            return createTranslationMatrix(viewT).multiplyMatrix(this.overridenRotationMatrix)
+        }
+
         return createTransformationMatrix(
-            new Vector(this.position.x, this.position.y, -this.position.z),
+            viewT,
             this.rotation
         );
     }

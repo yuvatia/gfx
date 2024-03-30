@@ -189,6 +189,10 @@ export class Matrix extends Serializable {
         ]);
     }
 
+    static createFromDirections(forward, up, right) {
+        this.createFromAxes(right, up, forward);
+    }
+
     static createFromAxes(xAxis, yAxis, zAxis) {
         const [xx, xy, xz] = xAxis.toArray();
         const [yx, yy, yz] = yAxis.toArray();
@@ -329,4 +333,8 @@ export class Matrix extends Serializable {
     equals(other, epsilon = 0.0001) {
         return this.elements.every((el, i) => Math.abs(el - other.elements[i]) < epsilon);
     }
+}
+
+export const lerp = (v1, v2, t) => {
+    return v1.add(v2.sub(v1).scale(t));
 }

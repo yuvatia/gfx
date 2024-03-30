@@ -44,6 +44,9 @@ export class Renderer {
 
         this.finalRotationMat = new Matrix();
 
+        // Stencil: set default value of rgba(0, 0, 255, 1) for all pixels, that way we pick the camera
+        // when not picking an entity
+        this.stencilClearColors = "rgba(0, 0, 255, 1)";
 
         this.onViewportResize();
     }
@@ -198,9 +201,6 @@ export class Renderer {
     clearCanvas() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-        // Stencil: set default value of rgba(0, 0, 255, 1) for all pixels, that way we pick the camera
-        // when not picking an entity
-        this.stencilClearColors = "rgba(0, 0, 255, 1)";
         this.stencilBufferCtx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         this.stencilBufferCtx.fillStyle = this.stencilClearColors;
         this.stencilBufferCtx.fillRect(0, 0, this.canvas.width, this.canvas.height);
@@ -522,7 +522,7 @@ class BasicShader {
                 renderPrefs.wireframe,
                 true,
                 false,
-                renderPrefs.writeIdToStencil ? `rgba(${entityId}, ${entityId}, ${entityId}, 1)` : null,
+                renderPrefs.writeIdToStencil ? `rgba(${(entityId >> 16) & 0xFF}, ${(entityId >> 8) & 0xFF}, ${entityId & 0xFF}, 1)` : null,
                 outlineColor
             );
         };
@@ -559,7 +559,7 @@ class BasicShader {
                 renderPrefs.wireframe,
                 true,
                 false,
-                renderPrefs.writeIdToStencil ? `rgba(${entityId}, ${entityId}, ${entityId}, 1)` : null,
+                renderPrefs.writeIdToStencil ? `rgba(${(entityId >> 16) & 0xFF}, ${(entityId >> 8) & 0xFF}, ${entityId & 0xFF}, 1)` : null,
                 outlineColor
             );
         });

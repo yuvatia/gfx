@@ -1,3 +1,4 @@
+import { createTranslationMatrix } from "./affine.js";
 import { MeshRenderer } from "./components.js";
 import { Vector } from "./math.js";
 import { Renderer } from "./renderer.js";
@@ -20,9 +21,14 @@ export class MouseController {
 
     onSetActiveScene(scene) {
         this.#scene = scene;
+        this.#controlledEntityID = MouseController.CameraId;
+        this.#dragStart = this.#dragStop = null;
+        // this.#renderer.camera.lookAt(new Vector(150, -20, 0));
     }
 
     setControlledEntity(entityId) {
+        if (this.#controlledEntityID === entityId) return;
+
         const setMeshRendererState = (entityId, state) => {
             const mr = this.#scene.forceGetComponent(entityId, MeshRenderer);
             if (!mr) return false;
@@ -33,6 +39,11 @@ export class MouseController {
         setMeshRendererState(this.#controlledEntityID, false);
         this.#controlledEntityID = entityId;
         setMeshRendererState(this.#controlledEntityID, true);
+
+        // const entityTransform = this.#scene.getComponent(this.#controlledEntityID, Transform);
+        // if (entityTransform) {
+        //     this.#renderer.camera.lookAt(entityTransform.position);
+        // }
     }
 
     getControlledEntity() {
@@ -56,9 +67,12 @@ export class MouseController {
 
     getEntityAtClientXY(clientX, clientY) {
         const stencilPixelValue = this.#renderer.pickBufferPixelAtPosition(Renderer.BufferType.STENCIL, clientX, clientY);
-        // map 255 to -1 === camera
-        const selectedEntity = stencilPixelValue[2] != 255 ? stencilPixelValue[2] : MouseController.CameraId;
-        return selectedEntity;
+        let stencilClearColors = this.#renderer.stencilClearColors.slice(5, -1).split(', ').map(Number); // ["a", "b", "c", "d"]
+        if (stencilClearColors[0] === stencilPixelValue[0] && stencilClearColors[1] === stencilPixelValue[1] && stencilClearColors[2] === stencilPixelValue[2]) {
+            return MouseController.CameraId;
+        }
+        return (stencilPixelValue[2] << 0) + (stencilPixelValue[1] << 8) + (stencilPixelValue[0] << 16);
+
     }
 
     isEntityAtClientXYDifferentThanSelected(clientX, clientY) {
@@ -105,18 +119,18 @@ export class MouseController {
             // TODO handedness -> negation
             const delta = lastDragStop.sub(this.#dragStop);
             // let d = new Vector(-event.movementX, -event.movementY, 0);
-            let target = targetID == -1 ? this.#renderer.camera.transform : this.#scene.getComponent(targetID, Transform);
+            let target = targetID == MouseController.CameraId ? this.#renderer.camera.transform : this.#scene.getComponent(targetID, Transform);
             target.adjustPosition(delta);
         } else {
             // Arcball rotation
             let extraRotation = this.#renderer.doArcballPrep(this.#dragStart, this.#dragStop);
-            if (targetID == -1) {
+            const target = targetID == MouseController.CameraId ? this.#renderer.camera.transform : this.#scene.getComponent(targetID, Transform);
+            if (targetID == MouseController.CameraId) {
                 this.#renderer.finalRotationMat = extraRotation;
+                // target.overridenRotationMatrix = target.getRotationMatrix().multiplyMatrix(extraRotation);
             } else {
                 // TODO: invert/decompose
                 // TODO need to adjust rotation instead
-                let target = this.#scene.getComponent(targetID, Transform);
-                const rotationMatrix = target.getRotationMatrix();
                 target.overridenRotationMatrix = target.getRotationMatrix().multiplyMatrix(extraRotation);
                 // cubeModelMatrices[targetID] = cubeModelMatrices[targetID].multiplyMatrix(extraRotation);
             }

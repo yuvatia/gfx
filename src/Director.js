@@ -39,6 +39,8 @@ const SetupSerialization = () => {
 
 
 export class Director {
+    #stopRequested = false;
+
     constructor() {
         SetupSerialization();
 
@@ -54,6 +56,26 @@ export class Director {
 
         window.addEventListener("resize", this.onViewportResize.bind(this));
     }
+
+    unsubscribeFromEvents() {
+        window.removeEventListener("resize", this.onViewportResize.bind(this));
+
+        document.removeEventListener('keydown', this.onKeydownEvent.bind(this));
+
+        const targetCanvas = this.renderer.canvas;
+        if (!this.renderer || !targetCanvas) return;
+        targetCanvas.removeEventListener('wheel', this.onMouseScroll.bind(this));
+        targetCanvas.removeEventListener('click', this.onMouseClick.bind(this));
+
+        targetCanvas.removeEventListener('mouseup', this.onMouseUp.bind(this));
+        targetCanvas.removeEventListener('mousedown', this.onMouseDown.bind(this));
+        targetCanvas.removeEventListener('mousemove', this.onMouseMove.bind(this));
+
+        targetCanvas.removeEventListener('touchend', this.onMouseUp.bind(this));
+        targetCanvas.removeEventListener('touchstart', this.onMouseDown.bind(this));
+        targetCanvas.removeEventListener('touchmove', this.onMouseMove.bind(this));
+    }
+
 
     getScene() {
         return this.scene;
@@ -179,6 +201,8 @@ export class Director {
     }
 
     #animationTickHandler = (timestamp) => {
+        if(this.#stopRequested) return;
+
         if (!this.lastFrameTime) this.lastFrameTime = timestamp;
         const elapsed = timestamp - this.lastFrameTime;
 
@@ -203,6 +227,10 @@ export class Director {
     start = () => {
         // Requests first animation frame
         requestAnimationFrame(this.#animationTickHandler.bind(this));
+    }
+
+    stop = () => {
+        this.#stopRequested = true;
     }
 }
 

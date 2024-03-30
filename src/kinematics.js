@@ -365,13 +365,13 @@ export const frameConstraint1Broken = (rb, r, p, dt) => {
 export class FollowConstraint extends Component {
     rb1ID = UUID.empty;  // tethered
     rb2ID = UUID.empty;  // tether
-    rb1Anchor = Vector.zero; // in rb1 local space
+    rb1Anchor = Vector.zero.clone(); // in rb1 local space
 
     #rb1 = new Rigidbody();  // tethered
     #rb2 = new Rigidbody();  // tether
 
 
-    constructor(rb1ID = UUID.empty, rb2ID = UUID.empty, rb1Anchor = Vector.zero) {
+    constructor(rb1ID = UUID.empty, rb2ID = UUID.empty, rb1Anchor = Vector.zero.clone()) {
         super();
 
         this.rb1ID = rb1ID;

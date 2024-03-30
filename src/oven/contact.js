@@ -134,7 +134,7 @@ export class Contact {
 // Define VectorUtil.formOrthogonalBasis function
 const VectorUtil = {
     formOrthogonalBasis: function (normal) {
-        let tangent = Vector.zero;
+        let tangent = Vector.zero.clone();
         if (Math.abs(normal.x) >= 0.57735) {
             tangent = new Vector(normal.y, -normal.x, 0).normalize();
         } else {

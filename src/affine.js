@@ -116,8 +116,8 @@ export function invertTranslation(translationMatrix) {
     return inverted;
 }
 
-export function createTransformationMatrix(translationVector, 
-    rotationEuler = new Vector(0, 0, 0), 
+export function createTransformationMatrix(translationVector,
+    rotationEuler = new Vector(0, 0, 0),
     scaleVector = new Vector(1, 1, 1)) {
     const translation = createTranslationMatrix(translationVector);
     const rotationXYZ = createRotationMatrixXYZ(...rotationEuler.toArray());
@@ -256,4 +256,31 @@ export function CreatePerspectiveProjection(fov, aspect, near, far) {
     // however, since we use column-major, we do persp*ortho
     return persp.multiplyMatrix(ortho);
     return ortho.multiplyMatrix(persp);
+}
+
+export const CreateLookAtView = (eye, center, up) => {
+    // We need to construct an orthogonal basis.
+    // The forward direction is easy, we take the vector from the center to the eye.
+    // The right direction is orthogonal to the forward and up direction,
+    // and to any vector on the same plane as the up direction. We
+    // can use a hard-coded up initially and assume they are on the same plane?
+    // TODO why does this work?
+    const f = center.sub(eye).normalize();  // forward direction
+    const s = f.crossProduct(up).normalize();  // right is orthogonal to forward and up
+    const u = s.crossProduct(f).normalize();  // up is orthogonal to forward and right
+
+    // Convert eye to new coordinate space
+    // THIS IS WHAT SHOULD BE    
+    // const newEye = new Vector(s.neg().dotProduct(eye), u.neg().dotProduct(eye), f.dotProduct(eye));
+    const newEye = new Vector(s.dotProduct(eye), u.neg().dotProduct(eye), f.dotProduct(eye));
+
+    const rotationMatrix = Matrix.createFromDirections(f, u, s);
+    return { position: newEye, rotationMatrix };
+
+    return new Matrix([
+        s.x, s.y, s.z, newEye.x,
+        u.x, u.y, u.z, newEye.y,
+        -f.x, -f.y, -f.z, newEye.z,
+        0, 0, 0, 1
+    ]);
 }
