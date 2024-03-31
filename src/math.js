@@ -194,7 +194,8 @@ export class Matrix extends Serializable {
     }
 
     static createFromDirections(forward, up, right) {
-        this.createFromAxes(right, up, forward);
+        // return this.createFromAxes(forward, up, right);
+        return this.createFromAxes(right, up, forward);
     }
 
     static createFromAxes(xAxis, yAxis, zAxis) {

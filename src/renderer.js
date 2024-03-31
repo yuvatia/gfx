@@ -42,8 +42,6 @@ export class Renderer {
 
         this.camera = sceneCamera;
 
-        this.finalRotationMat = Matrix.identity;
-
         // Stencil: set default value of rgba(0, 0, 255, 1) for all pixels, that way we pick the camera
         // when not picking an entity
         this.stencilClearColors = "rgba(0, 0, 255, 1)";
@@ -53,13 +51,17 @@ export class Renderer {
 
     worldToEye(point) {
         // return point;
+        // const bu = this.camera.transform.position.clone();
+        // this.camera.transform.position = bu.neg();
         const eyeSpace = this.camera.getViewMatrix().multiplyPoint(point);
+        // this.camera.position = bu;
+        return eyeSpace;
         // Note: the actual finalRotationMat rotates around the origin so we need to use a similarity transform
         const camT = createTranslationMatrix(this.camera.transform.position);
         // Apply final rotation
         // TODO is this really how it's done?
         const camTInverse = invertTranslation(camT);
-        const arcballRotation = camT.multiplyMatrix(this.finalRotationMat).multiplyMatrix(camTInverse); // T*R*T^-1
+        const arcballRotation = camT.multiplyMatrix(Matrix.identity).multiplyMatrix(camTInverse); // T*R*T^-1
         return arcballRotation.multiplyPoint(eyeSpace);
     }
 
@@ -80,8 +82,10 @@ export class Renderer {
         var w = clipSpace.w;
         if (this.preferences.perspectiveClipEnabled) {
             // if -w <= x, y, z <= w and w > 0, then inside viewing volume
-            if (w > 0) return null;
+            // TODO handedness
+            if (w < 0) return null;
             for (var i = 0; i < clipSpace3.length; ++i) {
+                // TODO handedness?
                 const isInside = -w <= clipSpace3[i] && clipSpace3[i] <= w;
                 if (isInside) {
                     return null;
@@ -332,7 +336,7 @@ export class Renderer {
             // see if normal is facing in positive z or not
             // See https://gamedev.stackexchange.com/questions/203694/how-to-make-backface-culling-work-correctly-in-both-orthographic-and-perspective
             let sign = ab.x * ac.y - ac.x * ab.y;
-            let isBackface = sign > 0; // Sign reversed due to handedness
+            let isBackface = sign < 0; // Sign reversed due to handedness
             if (isBackface && this.preferences.backfaceCulling) {
                 // Only backface is culled, keep rendering mesh
                 return;
@@ -574,13 +578,14 @@ class BasicShader {
 const DefaultMeshRef = DCELRepresentation.fromSimpleMesh(new Cube());
 
 export class RenderSystem {
-    preferences = { zOrdering: false };
+    preferences = { zOrdering: true };
     constructor() {
-        this.preferences = { zOrdering: false };
+        this.preferences = { zOrdering: true };
     }
 
     onFrameStart(scene, renderer, dt) {
         renderer.start(dt);
+        renderer.camera.validateViewMatrix();
     }
 
     renderScene(scene, renderer, dt) {

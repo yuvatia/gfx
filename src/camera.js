@@ -1,5 +1,5 @@
 import { Vector, lerp } from "./math.js";
-import { CreateLookAtView, CreatePerspectiveProjection, CreateSymmetricOrthographicProjection, createTransformationMatrix, getRotationAxes } from "./affine.js";
+import { CreateLookAtView, CreatePerspectiveProjection, CreateSymmetricOrthographicProjection, createTransformationMatrix, decomposeRotationXYZ, getRotationAxes } from "./affine.js";
 import { Transform } from "./transform.js";
 
 export class CameraSettings {
@@ -19,7 +19,7 @@ export class Camera {
     constructor(
         transform = new Transform(
             new Vector(-150, 20, -1000),
-            new Vector(0, 0, 0),
+            new Vector(0, 180, 180),
             new Vector(1, 1, 1)),
         settings = CameraSettings.default) {
         this.transform = transform;
@@ -119,7 +119,11 @@ export class Camera {
         // const up = new Vector(0, 1, 0);
         const { position, rotationMatrix } = CreateLookAtView(this.transform.position, target, up);
         this.easeMoveToPosition(position);
-        this.transform.overridenRotationMatrix = rotationMatrix;
+        // this.transform.overridenRotationMatrix = rotationMatrix;
+        this.transform.rotation = decomposeRotationXYZ(rotationMatrix);
+        if (this.transform.rotation.isNaN()) {
+            throw ("NaN rotation ", rotationMatrix, this.transform.rotation);
+        }
         this.viewMatrix = this.transform.getViewMatrix();
     }
 
