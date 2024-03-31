@@ -1,5 +1,5 @@
 import { Tag, UUID, UUIDComponent } from "./components.js";
-import { Reviever, Serializable } from "./reviver.js";
+import { Reviver, Serializable } from "./reviver.js";
 import { Transform } from "./transform.js";
 
 class Entity extends Serializable {
@@ -41,20 +41,26 @@ class Entity extends Serializable {
 }
 
 export class Scene extends Serializable {
+    uuid = UUID.create();
     entities = [];
     name = "Scene";
     #freelist = [];
 
     constructor(name = "Scene") {
         super();
+        this.uuid = UUID.create();
         this.name = name;
         this.entities = []
         this.#freelist = []
     }
 
+    equals(other) {
+        return this.uuid.equals(other.uuid);
+    }
+
     getValuesDict() {
         // Discard all invalid entities
-        return { entities: this.getEntities() };
+        return { entities: this.getEntities(), name: this.name, uuid: this.uuid };
     }
 
     initialize() {
@@ -195,7 +201,7 @@ export class Scene extends Serializable {
         // Serialize, then deserialize
         const entity = this.entityIdToEntity(entityId);
         const serialized = JSON.stringify(entity);
-        const deserialized = JSON.parse(serialized, Reviever.parse);
+        const deserialized = JSON.parse(serialized, Reviver.parse);
 
         // Assign new UUID
         deserialized.components[UUIDComponent.name].uuid = UUID.create();
@@ -209,9 +215,10 @@ export class Scene extends Serializable {
         return newEntityId;
     }
 
-    deepCopy() {
+    deepCopy(cloneName = null) {
         const serialized = JSON.stringify(this);
-        const deserialized = JSON.parse(serialized, Reviever.parse);
+        const deserialized = JSON.parse(serialized, Reviver.parse);
+        deserialized.name = cloneName ? cloneName : this.name + ' (Clone)';
         return deserialized;
     }
 

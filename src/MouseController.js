@@ -1,4 +1,4 @@
-import { createTranslationMatrix } from "./affine.js";
+import { createTranslationMatrix, reOrthogonalizeRotation } from "./affine.js";
 import { MeshRenderer } from "./components.js";
 import { Vector } from "./math.js";
 import { Renderer } from "./renderer.js";
@@ -123,15 +123,17 @@ export class MouseController {
             target.adjustPosition(delta);
         } else {
             // Arcball rotation
-            let extraRotation = this.#renderer.doArcballPrep(this.#dragStart, this.#dragStop);
+            // Incremenetal
+            let extraRotation = this.#renderer.doArcballPrep(lastDragStop, this.#dragStop);
             const target = targetID == MouseController.CameraId ? this.#renderer.camera.transform : this.#scene.getComponent(targetID, Transform);
             if (targetID == MouseController.CameraId) {
-                this.#renderer.finalRotationMat = extraRotation;
+                // this.#renderer.finalRotationMat = extraRotation;
+                this.#renderer.finalRotationMat = reOrthogonalizeRotation(this.#renderer.finalRotationMat.multiplyMatrix(extraRotation));
                 // target.overridenRotationMatrix = target.getRotationMatrix().multiplyMatrix(extraRotation);
             } else {
                 // TODO: invert/decompose
                 // TODO need to adjust rotation instead
-                target.overridenRotationMatrix = target.getRotationMatrix().multiplyMatrix(extraRotation);
+                target.overridenRotationMatrix = reOrthogonalizeRotation(target.getRotationMatrix().multiplyMatrix(extraRotation));
                 // cubeModelMatrices[targetID] = cubeModelMatrices[targetID].multiplyMatrix(extraRotation);
             }
         }

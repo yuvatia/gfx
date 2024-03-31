@@ -42,7 +42,7 @@ export class Renderer {
 
         this.camera = sceneCamera;
 
-        this.finalRotationMat = new Matrix();
+        this.finalRotationMat = Matrix.identity;
 
         // Stencil: set default value of rgba(0, 0, 255, 1) for all pixels, that way we pick the camera
         // when not picking an entity
@@ -125,6 +125,10 @@ export class Renderer {
     }
 
     doArcballPrep(screenStart, screenEnd) {
+        // If screenStart is within epsilon equals to screenEnd, return identity
+        if (screenStart.equals(screenEnd)) {
+            return Matrix.identity;
+        }
         let v0 = this.screenToNDC(screenStart.x, screenStart.y).normalize();
         let v1 = this.screenToNDC(screenEnd.x, screenEnd.y).normalize();
         let theta = Math.acos(v0.dotProduct(v1));
@@ -458,6 +462,7 @@ class BasicShader {
 
     drawMesh = (mesh, modelMatrix, material, entityId) => {
         const renderPrefs = this.scene.getComponent(entityId, MeshRenderer) || MeshRenderer.default;
+        if (!renderPrefs.visible) return;
         if (mesh.constructor === Mesh) {
             this.drawSimpleMesh(mesh, modelMatrix, material, entityId, renderPrefs);
         } else if (mesh.constructor === DCELRepresentation) {
@@ -569,7 +574,9 @@ class BasicShader {
 const DefaultMeshRef = DCELRepresentation.fromSimpleMesh(new Cube());
 
 export class RenderSystem {
+    preferences = { zOrdering: false };
     constructor() {
+        this.preferences = { zOrdering: false };
     }
 
     onFrameStart(scene, renderer, dt) {
@@ -594,15 +601,17 @@ export class RenderSystem {
         this.shader.submitLights(directionalLightSources);
 
         // // Z-ordering in camera space
-        // frameRenderInfo.sort((a, b) => {
-        //     const [aModelMatrix, aMeshRef, aMaterial, aEntId] = a;
-        //     const [bModelMatrix, bMeshRef, bMaterial, bEntId] = b;
-        //     const aWorldPos = aModelMatrix.multiplyPoint(new Vector(0, 0, 0));
-        //     const bWorldPos = bModelMatrix.multiplyPoint(new Vector(0, 0, 0));
-        //     const aCameraSpace = renderer.worldToEye(aWorldPos);
-        //     const bCameraSpace = renderer.worldToEye(bWorldPos);
-        //     return aCameraSpace.z - bCameraSpace.z;
-        // });
+        if (this.preferences.zOrdering) {
+            frameRenderInfo.sort((a, b) => {
+                const [aModelMatrix, aMeshRef, aMaterial, aEntId] = a;
+                const [bModelMatrix, bMeshRef, bMaterial, bEntId] = b;
+                const aWorldPos = aModelMatrix.multiplyPoint(new Vector(0, 0, 0));
+                const bWorldPos = bModelMatrix.multiplyPoint(new Vector(0, 0, 0));
+                const aCameraSpace = renderer.worldToEye(aWorldPos);
+                const bCameraSpace = renderer.worldToEye(bWorldPos);
+                return aCameraSpace.z - bCameraSpace.z;
+            });
+        }
 
         frameRenderInfo.forEach((
             [modelMatrix, meshRef, material, entId]) => this.shader.drawMesh(meshRef, modelMatrix, material, entId)

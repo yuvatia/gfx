@@ -9,7 +9,7 @@ import { MeshFilter, Material, MeshRenderer, DirectionalLight } from "./componen
 import { Director, SimpleDirector } from "./Director.js";
 import { Camera } from "./camera.js";
 import { MouseController } from "./MouseController.js";
-import { Reviever } from "./reviver.js";
+import { Reviver } from "./reviver.js";
 
 const bindSettingControls = (renderer) => {
     const settings = [
@@ -69,7 +69,7 @@ const makeRigidBox = (
     return entityId;
 }
 
-export const setupScene = (scene, entitiesCount, canvas) => {
+export const setupScene = (scene, entitiesCount, width, height, withGrid = true) => {
     if (entitiesCount < 4) {
         entitiesCount = 4;
     }
@@ -80,25 +80,27 @@ export const setupScene = (scene, entitiesCount, canvas) => {
     const cubeDcel = followDemo ? DCELRepresentation.fromSimpleMesh(new Cube()) : DCELRepresentation.fromSimpleMesh(makeIcosphere(2));
 
     // Grid has to be first since we don't have any Z-ordering or perspective tricks
-    const grid = DCELRepresentation.fromSimpleMesh(makeGrid());
-    const gridEntity = scene.newEntity("Grid",
-        new Transform(
-            Vector.zero,
-            Vector.zero,
-            new Vector(60, 60, 0))
-    );
-    scene.addComponent(gridEntity, MeshFilter).meshRef = makeGrid();
-    const gridMaterial = scene.addComponent(gridEntity, Material);
-    gridMaterial.diffuseColor = new Point(128, 128, 128, 1); // gray
-    const gridRenderPrefs = scene.addComponent(gridEntity, MeshRenderer);
-    gridRenderPrefs.shadingOn = false;
-    gridRenderPrefs.wireframe = true;
-    gridRenderPrefs.writeIdToStencil = false;
+    if (withGrid) {
+        const grid = DCELRepresentation.fromSimpleMesh(makeGrid());
+        const gridEntity = scene.newEntity("Grid",
+            new Transform(
+                Vector.zero,
+                Vector.zero,
+                new Vector(60, 60, 0))
+        );
+        scene.addComponent(gridEntity, MeshFilter).meshRef = makeGrid();
+        const gridMaterial = scene.addComponent(gridEntity, Material);
+        gridMaterial.diffuseColor = new Point(128, 128, 128, 1); // gray
+        const gridRenderPrefs = scene.addComponent(gridEntity, MeshRenderer);
+        gridRenderPrefs.shadingOn = false;
+        gridRenderPrefs.wireframe = true;
+        gridRenderPrefs.writeIdToStencil = false;
+    }
 
     for (let i = 0; i < entitiesCount; ++i) {
         let position = new Vector(
-            (2 * Math.random() - 1) * canvas.width,
-            (2 * Math.random() - 1) * canvas.height,
+            (2 * Math.random() - 1) * width,
+            (2 * Math.random() - 1) * height,
             30 * (Math.random() * 2 - 1));
         position.x = 350 * i;
         position.y = 250 * i;
@@ -210,12 +212,12 @@ const main = () => {
     let entitiesCount = document.getElementById("entitiesCount").value;
     document.getElementById("entitiesCount").addEventListener("change", (event) => {
         entitiesCount = Number(event.currentTarget.value || 0);
-        setupScene(scene, entitiesCount, canvas);
+        setupScene(scene, entitiesCount, canvas.width, canvas.height);
     });
-    setupScene(scene, entitiesCount, canvas);
+    setupScene(scene, entitiesCount, canvas.width, canvas.height);
 
     const serialized = JSON.stringify(scene);
-    const parsed = JSON.parse(serialized, Reviever.parse);
+    const parsed = JSON.parse(serialized, Reviver.parse);
     console.log(parsed);
     director.setActiveScene(parsed);
 

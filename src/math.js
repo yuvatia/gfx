@@ -151,6 +151,10 @@ export class Matrix extends Serializable {
         return this.equals(Matrix.identity);
     }
 
+    isNaN() {
+        return this.elements.some(isNaN);
+    }
+
     static inverseMatrix3x3(matrix) {
         // https://ardoris.wordpress.com/2008/07/18/general-formula-for-the-inverse-of-a-3x3-matrix/
         const m = matrix.elements;

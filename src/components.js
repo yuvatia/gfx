@@ -73,6 +73,7 @@ export class Material extends Component {
     }
 }
 export class MeshRenderer extends Component {
+    visible = true;
     shading = true;
     outline = false;
     wireframe = null; // Default to global settings

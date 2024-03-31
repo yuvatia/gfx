@@ -1,7 +1,7 @@
 export class Serializable {
     constructor() {
         // All serializables auto-subscribe to Reviver
-        Reviever.register(this.constructor);
+        Reviver.register(this.constructor);
     }
 
     // Should be overriden by subclasses
@@ -28,7 +28,7 @@ export class Serializable {
 }
 
 
-export class Reviever {
+export class Reviver {
     // When encoutering a type key, reviver will first
     // opt for instantiating a specialization
     static specializations_ = {};
@@ -46,8 +46,8 @@ export class Reviever {
     static parse(key, value) {
         // Value will be {"type": "Type", "value": {...}}
         // First try to load value if it is a string
-        if (value && value.type in Reviever.specializations) {
-            const type = Reviever.specializations[value.type];
+        if (value && value.type in Reviver.specializations) {
+            const type = Reviver.specializations[value.type];
             const instance = new type().fromJSON(value.value);
             return instance;
         }
