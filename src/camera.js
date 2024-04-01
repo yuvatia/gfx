@@ -18,7 +18,7 @@ export class CameraSettings {
 export class Camera {
     constructor(
         transform = new Transform(
-            new Vector(-150, 20, -1000),
+            new Vector(-150, 20, -100),
             new Vector(0, 180, 180),
             new Vector(1, 1, 1)),
         settings = CameraSettings.default) {

@@ -58,6 +58,11 @@ export class Scene extends Serializable {
         return this.uuid.equals(other.uuid);
     }
 
+    deepEquals(other) {
+        // JSON stringify then compare
+        return JSON.stringify(this) === JSON.stringify(other);
+    }
+
     getValuesDict() {
         // Discard all invalid entities
         return { entities: this.getEntities(), name: this.name, uuid: this.uuid };

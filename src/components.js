@@ -65,7 +65,7 @@ export class MeshFilter extends Component {
     }
 }
 export class Material extends Component {
-    diffuseColor = "white";
+    diffuse = "white";
     faceColoring = false;
 
     constructor() {

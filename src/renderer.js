@@ -493,7 +493,7 @@ class BasicShader {
 
             // TOOD support multiple light sources
             let finalDiffuse =
-                material.faceColoring ? colorNames[i % colorNames.length] : material.diffuseColor;
+                material.faceColoring ? colorNames[i % colorNames.length] : material.diffuse;
             if (this.renderer.preferences.shadingEnabled && renderPrefs.shading) {
                 for (let directionalLight of this.directionalLightSources) {
                     const lightDirection = directionalLight.direction;
@@ -502,9 +502,9 @@ class BasicShader {
 
                     let brightness = lightIntensity * Math.max(lightDirection.dotProduct(worldNormal), 0);
                     const combinedColor = new Vector(
-                        lightColor.x * material.diffuseColor.x,
-                        lightColor.y * material.diffuseColor.y,
-                        lightColor.z * material.diffuseColor.z);
+                        lightColor.x * material.diffuse.x,
+                        lightColor.y * material.diffuse.y,
+                        lightColor.z * material.diffuse.z);
 
                     // const diffuse = lightColor.multiply(brightness);
                     finalDiffuse = combinedColor.scale(brightness); // TODO: account for own color

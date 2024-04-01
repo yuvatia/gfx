@@ -114,7 +114,7 @@ export class MouseController {
 
         let targetID = this.getControlledEntity();
         // If the shift key is also pressed, treat it as translating the camera
-        const isTranslation = event.shiftKey || (event.touches && event.touches.length > 1);
+        const isTranslation = event.shiftKey || (event.touches && event.touches.length == 2);
         if (isTranslation) {
             // TODO handedness -> negation
             const delta = lastDragStop.sub(this.#dragStop);
@@ -127,8 +127,8 @@ export class MouseController {
             const target = targetID == MouseController.CameraId ? this.#renderer.camera.transform : this.#scene.getComponent(targetID, Transform);
             const newRotationMatrix = reOrthogonalizeRotation(target.getRotationMatrix().multiplyMatrix(extraRotation));
             const newRot = decomposeRotationXYZ(newRotationMatrix);
-            if(newRot.isNaN()) {
-                throw("NaN rotation! " + newRot.toString());
+            if (newRot.isNaN()) {
+                throw ("NaN rotation! " + newRot.toString());
             }
             target.rotation = newRot;
             // target.overridenRotationMatrix = newRotationMatrix;

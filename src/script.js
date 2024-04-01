@@ -58,7 +58,7 @@ const makeRigidBox = (
     // Add mesh component
     scene.addComponent(entityId, MeshFilter).meshRef = dcel;
     // Add material component
-    scene.addComponent(entityId, Material).diffuseColor = new Point(255, 70, 0, 1); // Red
+    scene.addComponent(entityId, Material).diffuse = new Point(255, 70, 0, 1); // Red
     // Add rigidbody component
     const rb = scene.addComponent(
         entityId,
@@ -90,7 +90,7 @@ export const setupScene = (scene, entitiesCount, width, height, withGrid = true)
         );
         scene.addComponent(gridEntity, MeshFilter).meshRef = makeGrid();
         const gridMaterial = scene.addComponent(gridEntity, Material);
-        gridMaterial.diffuseColor = new Point(128, 128, 128, 1); // gray
+        gridMaterial.diffuse = new Point(128, 128, 128, 1); // gray
         const gridRenderPrefs = scene.addComponent(gridEntity, MeshRenderer);
         gridRenderPrefs.shadingOn = false;
         gridRenderPrefs.wireframe = true;
