@@ -19,6 +19,10 @@ export class MouseController {
         this.#renderer = renderer;
     }
 
+    getName() {
+        return 'Mouse Control';
+    }
+
     onSetActiveScene(scene) {
         this.#scene = scene;
         this.#controlledEntityID = MouseController.CameraId;

@@ -50,6 +50,10 @@ export class Renderer {
         this.onViewportResize();
     }
 
+    getName() {
+        return 'Renderer';
+    }
+    
     worldToEye(point) {
         // return point;
         const eyeSpace = this.camera.getViewMatrix().multiplyPoint(point);
@@ -579,6 +583,10 @@ export class RenderSystem {
         this.preferences = { zOrdering: true };
     }
 
+    getName() {
+        return 'Render System';
+    }
+    
     onFrameStart(scene, renderer, dt) {
         renderer.start(dt);
         renderer.camera.validateViewMatrix();

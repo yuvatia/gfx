@@ -61,6 +61,10 @@ export class PhysicsSystem {
     #followConstraints = [];
     #rigidBodies = [];
 
+    getName() {
+        return 'Physics';
+    }
+    
     #collectConstraints(scene, debugRenderer) {
         if (this.preferences.solveConstraints) {
             this.#followConstraints = scene.getComponentView(FollowConstraint);

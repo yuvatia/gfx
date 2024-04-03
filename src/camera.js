@@ -33,6 +33,10 @@ export class Camera {
         this.onResize(0, 0); // Placeholder for now
     }
 
+    getName() {
+        return 'Camera';
+    }
+
     onResize(newWidth, newHeight) {
         const fovRadians = newWidth / newHeight;
         this.preferences.fov = fovRadians * 180 / Math.PI;

@@ -145,7 +145,7 @@ export class Director {
 
     registerSystem(system, enable = true) {
         this.systems.push(system);
-        this.setSystemState(system.constructor.name, enable);
+        this.setSystemState(this.getSystemName(system), enable);
         // raise onSetActiveScene event for system
         if (system.onSetActiveScene !== undefined) {
             system.onSetActiveScene(this.scene);
@@ -156,11 +156,15 @@ export class Director {
     removeSystem(system) {
         const systemRef = (typeof system === "string") ? this.getSystemByName(system) : system;
         this.systems = this.systems.filter((sys) => sys !== systemRef);
-        delete this.systemStates[systemRef.constructor.name];
+        delete this.systemStates[this.getSystemName(systemRef)];
     }
 
     getSystemByName(name) {
-        return this.systems.find((sys) => sys.constructor.name === name);
+        return this.systems.find((sys) => this.getSystemName(sys) === name);
+    }
+
+    getSystemName(system) {
+        return system.getName();
     }
 
     onViewportResize() {
@@ -194,14 +198,14 @@ export class Director {
 
     #invokeAllRegisteredSystemCallbacks(eventName, ...args) {
         for (let system of this.systems) {
-            if (!this.getSystemState(system.constructor.name)) continue;
+            if (!this.getSystemState(this.getSystemName(system))) continue;
             if (!system[eventName]) continue;
             system[eventName](...args);
         }
     }
 
     #animationTickHandler = (timestamp) => {
-        if(this.#stopRequested) return;
+        if (this.#stopRequested) return;
 
         if (!this.lastFrameTime) this.lastFrameTime = timestamp;
         const elapsed = timestamp - this.lastFrameTime;

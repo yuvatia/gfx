@@ -168,6 +168,10 @@ class GameplaySystem {
     #scene = null;
     rbodies = [];
 
+    getName() {
+        return 'Gameplay';
+    }
+
     onSetActiveScene(scene) {
         this.#scene = scene;
     }
