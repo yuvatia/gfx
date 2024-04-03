@@ -116,9 +116,7 @@ export class MouseController {
         // If the shift key is also pressed, treat it as translating the camera
         const isTranslation = event.shiftKey || (event.touches && event.touches.length == 2);
         if (isTranslation) {
-            // TODO handedness -> negation
-            const delta = lastDragStop.sub(this.#dragStop);
-            // let d = new Vector(-event.movementX, -event.movementY, 0);
+            const delta = this.#dragStop.sub(lastDragStop);
             let target = targetID == MouseController.CameraId ? this.#renderer.camera.transform : this.#scene.getComponent(targetID, Transform);
             target.adjustPosition(delta);
         } else {

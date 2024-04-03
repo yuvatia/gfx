@@ -29,6 +29,27 @@ export class Transform extends Component {
         return new Transform(this.position.clone(), this.rotation.clone(), this.scale.clone());
     }
 
+    lookAt(targetPosition) {
+        // Calculate direction from the camera to the target
+        const direction = targetPosition.sub(this.position);
+
+        // Calculate yaw (around Y-axis)
+        const yaw = Math.atan2(-direction.x, -direction.z);
+
+        // Calculate pitch (around X-axis)
+        const pitch = Math.atan2(direction.y, Math.sqrt(direction.x ** 2 + direction.z ** 2));
+
+        // No roll (around Z-axis) for lookAt
+
+        // Convert angles to degrees
+        const yawDeg = (180 / Math.PI) * yaw;
+        const pitchDeg = (180 / Math.PI) * pitch;
+        const rollDeg = 0;  // Assuming no roll
+
+        // Update the rotation of the transform
+        this.rotation = new Vector(pitchDeg, yawDeg, rollDeg);
+    }
+
     validateWorldMatrix() {
         if (this.overridenRotationMatrix) {
             this.worldMatrix_ =

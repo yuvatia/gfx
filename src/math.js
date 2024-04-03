@@ -36,6 +36,9 @@ export class Vector extends Serializable {
 
     static zero = new Vector(0, 0, 0);
     static one = new Vector(1, 1, 1);
+    static right = new Vector(1, 0, 0);
+    static up = new Vector(0, 1, 0);
+    static forward = new Vector(0, 0, 1);
 
     isNaN() {
         return isNaN(this.x) || isNaN(this.y) || isNaN(this.z);
@@ -193,7 +196,8 @@ export class Matrix extends Serializable {
         ]);
     }
 
-    static createFromDirections(forward, up, right) {
+    static createFromDirections(right, up, forward) {
+        // x - right, up - y, fowward - z
         // return this.createFromAxes(forward, up, right);
         return this.createFromAxes(right, up, forward);
     }

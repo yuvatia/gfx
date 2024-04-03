@@ -2,6 +2,7 @@
 Bugs1:
 1. Camera doesn't rotate around focal point
 1. need to resolve arcball and lookat and new perspective clip
+3. editor bug: after minimize all components are reset
 */
 
 

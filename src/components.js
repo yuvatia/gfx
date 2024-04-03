@@ -1,3 +1,4 @@
+import { MeshAsset } from "../asset.js";
 import { Vector } from "./math.js";
 import { Serializable } from "./reviver.js";
 
@@ -58,7 +59,7 @@ export class UUIDComponent extends Component {
     }
 }
 export class MeshFilter extends Component {
-    meshRef = null;
+    meshRef = MeshAsset.empty;
 
     constructor() {
         super();

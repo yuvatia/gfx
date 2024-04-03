@@ -169,6 +169,11 @@ export function getRotationAxes(rotationMatrix) {
     return [x, y, z];
 }
 
+export function getSpaceBasis(rotationMatrix) {
+    const [right, up, forward] = getRotationAxes(rotationMatrix);
+    return { right, up, forward };
+}
+
 export function reOrthogonalizeRotation(rotationMatrix) {
     // Skip if det is within epsilon range from 1
     const det = rotationMatrix.determinant();
@@ -205,6 +210,7 @@ export function CreateOrthographicMatrix(left, right, bottom, top, near, far) {
     // We do this by applying a transformation + scale.
     // Also note that we look down on the Z axis which is why there is 
     // a minus in the Z column
+    // in short: z is from -1 to 1, and camera forward is negative z
     return new Matrix([
         2 / (right - left), 0, 0, -(right + left) / (right - left),
         0, 2 / (top - bottom), 0, -(top + bottom) / (top - bottom),
@@ -228,8 +234,8 @@ export function CreateSymmetricOrthographicProjection(fov, aspect, near, far) {
     const fovRadians = fov * Math.PI / 180;
     const top = near * Math.tan(fovRadians / 2);
     const bottom = -top;
-    const left = bottom * aspect;
     const right = top * aspect;
+    const left = -right;
     const ortho = CreateOrthographicMatrix(left, right, bottom, top, near, far);
     return ortho;
 }
@@ -255,7 +261,7 @@ export function CreatePerspectiveProjection(fov, aspect, near, far) {
     // row-major: First apply perspective, then ortho
     // however, since we use column-major, we do persp*ortho
     return persp.multiplyMatrix(ortho);
-    return ortho.multiplyMatrix(persp);
+    // return ortho.multiplyMatrix(persp);
 }
 
 export const CreateLookAtView = (eye, center, up) => {
@@ -266,21 +272,25 @@ export const CreateLookAtView = (eye, center, up) => {
     // can use a hard-coded up initially and assume they are on the same plane?
     // TODO why does this work?
     const f = center.sub(eye).normalize();  // forward direction
-    const s = f.crossProduct(up).normalize();  // right is orthogonal to forward and up
-    const u = s.crossProduct(f).normalize();  // up is orthogonal to forward and right
+    const r = f.crossProduct(up).normalize();  // right is orthogonal to forward and up
+    const u = r.crossProduct(f).normalize();  // up is orthogonal to forward and right
+
+    // (s, u, -f) is a positive orthonormal basis
 
     // Convert eye to new coordinate space
     // THIS IS WHAT SHOULD BE    
     // const newEye = new Vector(s.neg().dotProduct(eye), u.neg().dotProduct(eye), f.dotProduct(eye));
-    const newEye = new Vector(s.dotProduct(eye), u.neg().dotProduct(eye), f.dotProduct(eye));
+    // const newEye = new Vector(s.dotProduct(eye), u.neg().dotProduct(eye), f.dotProduct(eye));
+    const newEye = new Vector(r.dotProduct(eye), u.dotProduct(eye), f.dotProduct(eye));
 
-    const rotationMatrix = Matrix.createFromDirections(f, u, s);
-    return { position: newEye, rotationMatrix };
-
-    return new Matrix([
-        s.x, s.y, s.z, newEye.x,
-        u.x, u.y, u.z, newEye.y,
-        -f.x, -f.y, -f.z, newEye.z,
+    const rotationMatrix = Matrix.createFromDirections(r, u, f.neg());
+    const rotationMatrix2 = new Matrix([
+        r.x, r.y, r.z, 0,
+        u.x, u.y, u.z, 0,
+        -f.x, -f.y, -f.z, 0,
         0, 0, 0, 1
-    ]);
+    ]).transpose();
+
+    // TODO ignore newEye!!
+    return { position: newEye, rotationMatrix: rotationMatrix };
 }

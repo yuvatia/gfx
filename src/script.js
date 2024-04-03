@@ -10,6 +10,7 @@ import { Director, SimpleDirector } from "./Director.js";
 import { Camera } from "./camera.js";
 import { MouseController } from "./MouseController.js";
 import { Reviver } from "./reviver.js";
+import { MeshAsset } from "../asset.js";
 
 const bindSettingControls = (renderer) => {
     const settings = [
@@ -42,8 +43,8 @@ const bindSettingControls = (renderer) => {
 
 }
 
-const BoxDCEL = DCELRepresentation.fromSimpleMesh(new Cube());
-const SphereDCEL = DCELRepresentation.fromSimpleMesh(makeIcosphere(2));
+const BoxDCEL = MeshAsset.get('Cube');
+const SphereDCEL = MeshAsset.get('Sphere');
 const makeRigidBox = (
     scene,
     position,
@@ -53,10 +54,10 @@ const makeRigidBox = (
     gravityScale = 0.0,
     isBox = true,
     name = "Box") => {
-    const dcel = isBox ? BoxDCEL : SphereDCEL;
+    const meshAsset = isBox ? BoxDCEL : SphereDCEL;
     const entityId = scene.newEntity(name, new Transform(position, rotation, scale));
     // Add mesh component
-    scene.addComponent(entityId, MeshFilter).meshRef = dcel;
+    scene.addComponent(entityId, MeshFilter).meshRef = meshAsset;
     // Add material component
     scene.addComponent(entityId, Material).diffuse = new Point(255, 70, 0, 1); // Red
     // Add rigidbody component
@@ -81,14 +82,13 @@ export const setupScene = (scene, entitiesCount, width, height, withGrid = true)
 
     // Grid has to be first since we don't have any Z-ordering or perspective tricks
     if (withGrid) {
-        const grid = DCELRepresentation.fromSimpleMesh(makeGrid());
         const gridEntity = scene.newEntity("Grid",
             new Transform(
                 Vector.zero,
                 Vector.zero,
                 new Vector(60, 60, 0))
         );
-        scene.addComponent(gridEntity, MeshFilter).meshRef = makeGrid();
+        scene.addComponent(gridEntity, MeshFilter).meshRef = new MeshAsset(makeGrid());
         const gridMaterial = scene.addComponent(gridEntity, Material);
         gridMaterial.diffuse = new Point(128, 128, 128, 1); // gray
         const gridRenderPrefs = scene.addComponent(gridEntity, MeshRenderer);
@@ -118,11 +118,11 @@ export const setupScene = (scene, entitiesCount, width, height, withGrid = true)
 
 
     // Create a light source
-    // shine towards Z axis
+    // shine towards negative Z axis (into the screen)
     const lightEntity = scene.newEntity("Light");
     scene.getComponent(lightEntity, Transform).position.x = 1337;
     const light = scene.addComponent(lightEntity, DirectionalLight);
-    light.direction = new Vector(0, 0.5, 1).normalize();
+    light.direction = new Vector(0, 0.5, -1).normalize();
     light.intensity = 0.012;
     light.color = new Point(100, 255, 0, 1);
 

@@ -1,5 +1,5 @@
-import { Vector, lerp } from "./math.js";
-import { CreateLookAtView, CreatePerspectiveProjection, CreateSymmetricOrthographicProjection, createTransformationMatrix, decomposeRotationXYZ, getRotationAxes } from "./affine.js";
+import { Matrix, Vector, lerp } from "./math.js";
+import { CreateLookAtView, CreatePerspectiveProjection, CreateSymmetricOrthographicProjection, createTransformationMatrix, decomposeRotationXYZ, getRotationAxes, getSpaceBasis } from "./affine.js";
 import { Transform } from "./transform.js";
 
 export class CameraSettings {
@@ -18,66 +18,72 @@ export class CameraSettings {
 export class Camera {
     constructor(
         transform = new Transform(
-            new Vector(-150, 20, -100),
-            new Vector(0, 180, 180),
+            // new Vector(-150, 20, 100),
+            new Vector(0, 0, 100),
+            new Vector(0, 0, 0),
             new Vector(1, 1, 1)),
         settings = CameraSettings.default) {
         this.transform = transform;
         this.validateViewMatrix();
 
-        this.focalPoint = Vector.zero;
+        this.focalPoint = new Vector(100, 300, 0); //Vector.zero;
 
-        this.settings = settings;
+        this.preferences = settings;
 
         this.onResize(0, 0); // Placeholder for now
     }
 
     onResize(newWidth, newHeight) {
+        const fovRadians = newWidth / newHeight;
+        this.preferences.fov = fovRadians * 180 / Math.PI;
+
         this.persProjection = CreatePerspectiveProjection(
-            this.settings.fov,
+            this.preferences.fov,
             newWidth / newHeight,
-            this.settings.near,
-            this.settings.far
+            this.preferences.near,
+            this.preferences.far
         );
         this.orthoProjection = CreateSymmetricOrthographicProjection(
-            this.settings.fov,
+            this.preferences.fov,
             newWidth / newHeight,
-            this.settings.near,
-            this.settings.far
+            this.preferences.near,
+            this.preferences.far
         );
     }
 
     onKeydownEvent(event) {
         if (event.shiftKey) {
+            const { right, up, forward } = this.getDirections();
             if (event.key === 'W') {
-                this.transform.adjustPosition(new Vector(0, 50, 0));
+                this.transform.adjustPosition(up.scale(5));
             } else if (event.key === 'S') {
-                this.transform.adjustPosition(new Vector(0, -50, 0));
+                this.transform.adjustPosition(up.neg().scale(5));
             } else if (event.key === 'A') {
-                this.transform.adjustPosition(new Vector(-50, 0, 0));
+                this.transform.adjustPosition(right.scale(5));
             } else if (event.key === 'D') {
-                this.transform.adjustPosition(new Vector(50, 0, 0));
+                this.transform.adjustPosition(right.neg().scale(5));
             } else if (event.key === 'Z') {
-                this.transform.adjustPosition(new Vector(0, 0, 100));
+                this.transform.adjustPosition(forward.scale(5));
             } else if (event.key === 'X') {
-                this.transform.adjustPosition(new Vector(0, 0, -100));
+                this.transform.adjustPosition(forward.neg().scale(5));
             }
             this.validateViewMatrix();
         }
         // If ctrl is pressed then we use the same buttons but to adjust rotation
         if (event.altKey) {
+            const { right, up, forward } = { right: Vector.right, up: Vector.up, forward: Vector.forward };
             if (event.key === 'w') {
-                this.transform.adjustRotation(new Vector(1, 0, 0));
+                this.transform.adjustRotation(right);
             } else if (event.key === 's') {
-                this.transform.adjustRotation(new Vector(-1, 0, 0));
+                this.transform.adjustRotation(right.neg());
             } else if (event.key === 'a') {
-                this.transform.adjustRotation(new Vector(0, 1, 0));
+                this.transform.adjustRotation(up);
             } else if (event.key === 'd') {
-                this.transform.adjustRotation(new Vector(0, -1, 0));
+                this.transform.adjustRotation(up.neg());
             } else if (event.key === 'z') {
-                this.transform.adjustRotation(new Vector(0, 0, 1));
+                this.transform.adjustRotation(forward);
             } else if (event.key === 'x') {
-                this.transform.adjustRotation(new Vector(0, 0, -1));
+                this.transform.adjustRotation(forward.neg());
             }
             this.validateViewMatrix();
         }
@@ -85,12 +91,24 @@ export class Camera {
 
     onMouseScroll(event) {
         event.preventDefault();
-        const [x, y, z] = getRotationAxes(this.transform.getViewMatrix());
-        this.transform.adjustPosition(z.scale(event.deltaY));
+        const z = Vector.forward;
+        // const [x, y, z] = getRotationAxes(this.transform.getViewMatrix());
+        // let toFocal = this.focalPoint.sub(this.transform.position);
+        // NOTES!
+        // x is reversed
+        // toFocal = new Vector(-toFocal.x, toFocal.y, toFocal.z);
+        // const z = toFocal.normalize();
+        // let distance = toFocal.magnitude();
+        // let scale = event.deltaY * Math.min(1, distance / 500);
+        this.transform.adjustPosition(z.scale(event.deltaY * 0.1));
     };
 
     validateViewMatrix() {
         this.viewMatrix = this.transform.getViewMatrix();
+    }
+
+    getDirections() {
+        return getSpaceBasis(this.transform.getRotationMatrix());
     }
 
     onSetActiveScene() {
@@ -109,16 +127,19 @@ export class Camera {
                 clearInterval(this.interval);
             }
         }, duration / steps);
-
     }
 
     lookAt(target) {
         this.focalPoint = target;
+        // this.transform.lookAt(target);
+        // this.viewMatrix = this.transform.getViewMatrix();
 
-        const up = getRotationAxes(this.transform.getViewMatrix())[1]; // y
-        // const up = new Vector(0, 1, 0);
+        // return;
+
+        // const up = getRotationAxes(this.transform.getViewMatrix())[1]; // y
+        const up = Vector.up;
         const { position, rotationMatrix } = CreateLookAtView(this.transform.position, target, up);
-        this.easeMoveToPosition(position);
+        // this.easeMoveToPosition(position);
         // this.transform.overridenRotationMatrix = rotationMatrix;
         this.transform.rotation = decomposeRotationXYZ(rotationMatrix);
         if (this.transform.rotation.isNaN()) {
@@ -132,7 +153,7 @@ export class Camera {
     }
 
     getProjectionMatrix() {
-        if (this.settings.isOrthographic) {
+        if (this.preferences.isOrthographic) {
             return this.orthoProjection;
         } else {
             return this.persProjection;

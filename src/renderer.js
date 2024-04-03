@@ -5,6 +5,7 @@ import { DirectionalLight, Material, MeshFilter, MeshRenderer } from "./componen
 import { Transform } from "./transform.js";
 import { DCELRepresentation } from "./halfmesh.js";
 import { Cube, Mesh } from "./geometry.js";
+import { MeshAsset } from "../asset.js";
 
 export class RendererPrefrences {
     constructor() {
@@ -51,18 +52,8 @@ export class Renderer {
 
     worldToEye(point) {
         // return point;
-        // const bu = this.camera.transform.position.clone();
-        // this.camera.transform.position = bu.neg();
         const eyeSpace = this.camera.getViewMatrix().multiplyPoint(point);
-        // this.camera.position = bu;
         return eyeSpace;
-        // Note: the actual finalRotationMat rotates around the origin so we need to use a similarity transform
-        const camT = createTranslationMatrix(this.camera.transform.position);
-        // Apply final rotation
-        // TODO is this really how it's done?
-        const camTInverse = invertTranslation(camT);
-        const arcballRotation = camT.multiplyMatrix(Matrix.identity).multiplyMatrix(camTInverse); // T*R*T^-1
-        return arcballRotation.multiplyPoint(eyeSpace);
     }
 
     eyeToClip(point) {
@@ -71,6 +62,12 @@ export class Renderer {
 
     perspectiveDivision(point) {
         return point.multiply(1 / point.w);
+    }
+
+    tempIsPointInFrustum(clipSpacePoint) {
+        return Math.abs(clipSpacePoint.x) <= clipSpacePoint.w &&
+            Math.abs(clipSpacePoint.y) <= clipSpacePoint.w &&
+            Math.abs(clipSpacePoint.z) <= clipSpacePoint.w;
     }
 
     project3Dto2D(point, applyPerspectiveDivision = true) {
@@ -82,15 +79,13 @@ export class Renderer {
         var w = clipSpace.w;
         if (this.preferences.perspectiveClipEnabled) {
             // if -w <= x, y, z <= w and w > 0, then inside viewing volume
+            // See https://registry.khronos.org/OpenGL/specs/gl/glspec46.core.pdf
             // TODO handedness
+            // if(!this.tempIsPointInFrustum(clipSpace)) {
+            //     return null
+            // }
+            // console.log('shiat');
             if (w < 0) return null;
-            for (var i = 0; i < clipSpace3.length; ++i) {
-                // TODO handedness?
-                const isInside = -w <= clipSpace3[i] && clipSpace3[i] <= w;
-                if (isInside) {
-                    return null;
-                }
-            }
         }
 
         const ndc = applyPerspectiveDivision ? this.perspectiveDivision(clipSpace) : clipSpace;
@@ -148,10 +143,8 @@ export class Renderer {
     }
 
     onViewportResize() {
-        // TODO delta from source
-        // No need to resize canvas since responsiveness is guaranteed
-        const [newWidth, newHeight] = [window.innerWidth, window.innerHeight];
-
+        // const [newWidth, newHeight] = [window.innerWidth, window.innerHeight];
+        const [newWidth, newHeight] = [this.canvas.parentNode.clientWidth, this.canvas.parentNode.clientHeight];
         this.canvas.width = newWidth;
         this.canvas.height = newHeight;
 
@@ -159,6 +152,7 @@ export class Renderer {
         this.canvasTranslation.x = this.canvas.width * 0.5;
         this.canvasTranslation.y = this.canvas.height * 0.5;
         this.ctx.translate(this.canvasTranslation.x, this.canvasTranslation.y);
+        this.ctx.imageSmoothingQuality = "high";
 
         this.stencilBuffer.width = newWidth;
         this.stencilBuffer.height = newHeight;
@@ -227,14 +221,14 @@ export class Renderer {
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
         // Draw text "FPS: (x, y)" in upper right corner
-        this.ctx.font = "bold 15px Arial";
+        // this.ctx.font = "bold 10px Arial";
         this.ctx.fillStyle = "black";
         // Convert dt to frameRate
         const frameRate = (1000 / dt);
 
         // this.drawXYGrid2D();
-        this.ctx.fillText(`FPS: ${frameRate.toFixed(0)}`, this.canvas.width - 100, 20);
-        this.ctx.fillText(`Camera: ${this.camera.transform.position.toString()}`, this.canvas.width - 250, 40);
+        this.ctx.fillText(`FPS: ${frameRate.toFixed(0)}`, this.canvas.width * 0.8, 20);
+        this.ctx.fillText(`Camera: ${this.camera.transform.position.toString()}`, this.canvas.width * 0.5, 40);
         this.restoreCanvasState();
     }
 
@@ -336,7 +330,7 @@ export class Renderer {
             // see if normal is facing in positive z or not
             // See https://gamedev.stackexchange.com/questions/203694/how-to-make-backface-culling-work-correctly-in-both-orthographic-and-perspective
             let sign = ab.x * ac.y - ac.x * ab.y;
-            let isBackface = sign < 0; // Sign reversed due to handedness
+            let isBackface = sign < 0;
             if (isBackface && this.preferences.backfaceCulling) {
                 // Only backface is culled, keep rendering mesh
                 return;
@@ -464,7 +458,9 @@ class BasicShader {
     }
 
 
-    drawMesh = (mesh, modelMatrix, material, entityId) => {
+    drawMesh = (meshRef, modelMatrix, material, entityId) => {
+        if (!meshRef || !meshRef.mesh) return;
+        const mesh = meshRef.mesh;
         const renderPrefs = this.scene.getComponent(entityId, MeshRenderer) || MeshRenderer.default;
         if (!renderPrefs.visible) return;
         if (mesh.constructor === Mesh) {
@@ -575,7 +571,7 @@ class BasicShader {
     }
 }
 
-const DefaultMeshRef = DCELRepresentation.fromSimpleMesh(new Cube());
+const DefaultMeshAsset = MeshAsset.get('Cube');
 
 export class RenderSystem {
     preferences = { zOrdering: true };
@@ -599,7 +595,7 @@ export class RenderSystem {
                 scene.getComponent(entId, MeshFilter),
                 scene.getComponent(entId, Material)];
             transform.validateWorldMatrix();
-            return [transform.toWorldMatrix(), meshFilter.meshRef || DefaultMeshRef, material, entId];
+            return [transform.toWorldMatrix(), meshFilter.meshRef || DefaultMeshAsset, material, entId];
         });
 
         const directionalLightSources = scene.getView(DirectionalLight).map(entityId => scene.getComponent(entityId, DirectionalLight));

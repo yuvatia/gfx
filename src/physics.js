@@ -121,9 +121,9 @@ export class PhysicsSystem {
         const rb1ColliderMesh = rb1.collider.meshRef || new BoxCollider().meshRef;
         const rb2ColliderMesh = rb2.collider.meshRef || new BoxCollider().meshRef;
         res = getMeshMeshManifold(
-            rb1ColliderMesh,
+            rb1ColliderMesh.mesh,
             rb1.transform,
-            rb2ColliderMesh,
+            rb2ColliderMesh.mesh,
             rb2.transform,
             debugRenderer,
             this.preferences.clipStepsCount);

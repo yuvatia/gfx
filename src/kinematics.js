@@ -1,3 +1,4 @@
+import { Asset, MeshAsset } from "../asset.js";
 import { createScaleMatrix, decomposeRotationXYZ, invertRotation, reOrthogonalizeRotation } from "./affine.js";
 import { Component, UUID, UUIDComponent } from "./components.js";
 import { Cube } from "./geometry.js";
@@ -72,7 +73,7 @@ export class SphereCollider {
 }
 
 export class BoxCollider {
-    meshRef = DCELRepresentation.fromSimpleMesh(new Cube());
+    meshRef = MeshAsset.get('Cube');
 }
 
 export class MeshCollider {
@@ -112,7 +113,7 @@ export class Rigidbody extends Component {
         this.angularDamping = 0.999;
         this.linearDamping = 0.999;
 
-        this.collider = collider;
+        this.collider = collider || new BoxCollider();
 
         this.gravityScale = 0.0;
 
