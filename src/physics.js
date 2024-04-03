@@ -64,7 +64,11 @@ export class PhysicsSystem {
     getName() {
         return 'Physics';
     }
-    
+
+    static getName() {
+        return 'Physics';
+    }
+
     #collectConstraints(scene, debugRenderer) {
         if (this.preferences.solveConstraints) {
             this.#followConstraints = scene.getComponentView(FollowConstraint);

@@ -225,14 +225,14 @@ export class Renderer {
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
         // Draw text "FPS: (x, y)" in upper right corner
-        // this.ctx.font = "bold 10px Arial";
+        this.ctx.font = "bold Arial";
         this.ctx.fillStyle = "black";
         // Convert dt to frameRate
         const frameRate = (1000 / dt);
 
         // this.drawXYGrid2D();
         this.ctx.fillText(`FPS: ${frameRate.toFixed(0)}`, this.canvas.width * 0.8, 20);
-        this.ctx.fillText(`Camera: ${this.camera.transform.position.toString()}`, this.canvas.width * 0.5, 40);
+        this.ctx.fillText(`Camera: ${this.camera.transform.position.toString()}`, this.canvas.width * 0.8, 40);
         this.restoreCanvasState();
     }
 
