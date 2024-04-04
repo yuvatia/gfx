@@ -1,6 +1,7 @@
 import { Matrix, Vector, lerp } from "./math.js";
 import { CreateLookAtView, CreatePerspectiveProjection, CreateSymmetricOrthographicProjection, createTransformationMatrix, decomposeRotationXYZ, getRotationAxes, getSpaceBasis } from "./affine.js";
 import { Transform } from "./transform.js";
+import { AABB } from "./shape_queries.js";
 
 export class CameraSettings {
     constructor() {
@@ -19,18 +20,23 @@ export class Camera {
     constructor(
         transform = new Transform(
             // new Vector(-150, 20, 100),
-            new Vector(0, 0, 100),
-            new Vector(0, 0, 0),
+            new Vector(0, 0, -100),
+            new Vector(0, 180, 180),
             new Vector(1, 1, 1)),
         settings = CameraSettings.default) {
         this.transform = transform;
         this.validateViewMatrix();
 
-        this.focalPoint = new Vector(100, 300, 0); //Vector.zero;
+        this.focalPoint = Vector.zero;
 
         this.preferences = settings;
 
         this.onResize(0, 0); // Placeholder for now
+    }
+
+    onFrameStart() {
+        // Hack to expose position in editor
+        this.preferences.position = this.transform.position;
     }
 
     getName() {
@@ -95,13 +101,14 @@ export class Camera {
 
     onMouseScroll(event) {
         event.preventDefault();
-        const z = Vector.forward;
-        // const [x, y, z] = getRotationAxes(this.transform.getViewMatrix());
-        // let toFocal = this.focalPoint.sub(this.transform.position);
+        // const z = Vector.forward;
+        const { forward: z } = this.getDirections();
+        // let toFocal = this.focalPoint.sub(this.transform.position).neg();
         // NOTES!
         // x is reversed
         // toFocal = new Vector(-toFocal.x, toFocal.y, toFocal.z);
         // const z = toFocal.normalize();
+        console.log(z);
         // let distance = toFocal.magnitude();
         // let scale = event.deltaY * Math.min(1, distance / 500);
         this.transform.adjustPosition(z.scale(event.deltaY * 0.1));
@@ -131,6 +138,19 @@ export class Camera {
                 clearInterval(this.interval);
             }
         }, duration / steps);
+    }
+
+    focusAt(aabb) {
+        const { forward } = this.getDirections();
+
+        const cameraDistance = 2.0; // Constant factor
+
+        const extents = aabb.getExtent();
+        const maxExtent = Math.max(extents.x, extents.y, extents.z);
+        const cameraView = 2.0 * Math.tan(0.5 * (Math.PI / 180) * this.preferences.fov); // Visible height 1 meter in front
+        let distance = cameraDistance * maxExtent / cameraView; // Combined wanted distance from the object
+        distance += 0.5 * maxExtent; // Estimated offset from the center to the outside of the object
+        this.transform.position = aabb.getOrigin().sub(forward.scale(distance));
     }
 
     lookAt(target) {

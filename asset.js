@@ -79,7 +79,10 @@ export class MeshAsset extends Asset {
     }
 }
 
+let isInitialized = false;
 const initializeAssets = () => {
+    if (isInitialized) return;
+    isInitialized = true;
     new MeshAsset('Cube', DCELRepresentation.fromSimpleMesh(new Cube()));
     new MeshAsset('Sphere', DCELRepresentation.fromSimpleMesh(makeIcosphere(3)));
 }

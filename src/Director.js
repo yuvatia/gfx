@@ -1,3 +1,4 @@
+import { Asset, MeshAsset } from "../asset.js";
 import { MouseController } from "./MouseController.js";
 import { Camera } from "./camera.js";
 import { DirectionalLight, Material, MeshFilter, MeshRenderer, Tag, UUID, UUIDComponent } from "./components.js";
@@ -7,18 +8,19 @@ import { FollowConstraint, Rigidbody } from "./kinematics.js";
 import { Matrix, Point, Vector } from "./math.js";
 import { PhysicsSystem } from "./physics.js";
 import { RenderSystem, Renderer, RendererPrefrences } from "./renderer.js";
-import { Scene } from "./scene.js";
+import { Entity, Scene } from "./scene.js";
 import { SignalEmitter } from "./signal_emitter.js";
 import { Transform } from "./transform.js";
 
 
-const SetupSerialization = () => {
+export const SetupSerialization = () => {
     // Instantiate a new instance of all serialzable classes.
     // This is necessary to register all classes with the reviver
     new Point();
     new Vector();
     new Matrix();
 
+    new Entity();
     new Scene();
 
     new UUID();
@@ -35,8 +37,10 @@ const SetupSerialization = () => {
     new MeshFilter();
     new Rigidbody();
     new FollowConstraint();
-}
 
+    new Asset();
+    new MeshAsset();
+}
 
 export class Director {
     #stopRequested = false;

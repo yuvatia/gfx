@@ -51,6 +51,7 @@ export class PhysicsPreferences {
     updateRigidbodies = true;
     clipStepsCount = 99;
     visualize = false;
+    g = Vector.up.neg();
 }
 
 export class PhysicsSystem {
@@ -205,7 +206,7 @@ export class PhysicsSystem {
 
         // apply forces
         this.#rigidBodies.forEach(([entId, [rb]]) => {
-            const gravityForce = new Vector(0, 0, -this.preferences.gravity * rb.mass * rb.gravityScale);
+            const gravityForce = this.preferences.g.scale(this.preferences.gravity * rb.mass * rb.gravityScale);
             rb.force = rb.force.add(gravityForce);
         });
 

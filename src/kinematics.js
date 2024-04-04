@@ -196,8 +196,11 @@ export class Rigidbody extends Component {
         const R = this.transform.getRotationMatrix();
         const deltaR = Matrix.createSkewSymmetric(this.angularVelocity).multiplyMatrix(R).scaleBy(dt);
         const finalRotation = reOrthogonalizeRotation(R.addMatrix(deltaR));
-        // this.transform.rotation = decomposeRotationXYZ(finalRotation);
-        this.transform.overridenRotationMatrix = finalRotation;
+        this.transform.rotation = decomposeRotationXYZ(finalRotation);
+        if (this.transform.rotation.isNaN()) {
+            throw ("NaN rotation ", finalRotation, this.transform.rotation);
+        }
+        // this.transform.overridenRotationMatrix = finalRotation;
 
         // Apply some damping
         this.linearVelocity = this.linearVelocity.scale(this.linearDamping);

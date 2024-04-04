@@ -2,7 +2,7 @@ import { Tag, UUID, UUIDComponent } from "./components.js";
 import { Reviver, Serializable } from "./reviver.js";
 import { Transform } from "./transform.js";
 
-class Entity extends Serializable {
+export class Entity extends Serializable {
     id = 0;  // Default to id: 0 generation: 0
     components = {};  // c.constructor.name: c
 

@@ -2,6 +2,7 @@ import { Vector, Matrix, Point } from './math.js';
 import { Plane } from './collision.js';
 import { Serializable } from './reviver.js';
 import { Cube } from './geometry.js';
+import { AABB } from './shape_queries.js';
 class Interval {
     constructor(min, max) {
         this.min = min;
@@ -243,11 +244,25 @@ class DCELRepresentation extends Serializable {
 
     initialize(assetName) {
         const CUBE_MASH = 'HALFMESH_PLACEHOLDER';
-        switch(assetName) {
+        switch (assetName) {
             case CUBE_MASH:
             default:
                 Object.assign(this, DCELRepresentation.fromSimpleMesh(new Cube()));
         }
+    }
+
+    getBoundingBox() {
+        // We take the min and max vertices then construct an AABB
+
+        let minCoords = new Vector(Infinity, Infinity, Infinity);
+        let maxCoords = new Vector(-Infinity, -Infinity, -Infinity);
+        for (const v of this.vertices) {
+            const position = v.position;
+            minCoords = new Vector(Math.min(minCoords.x, position.x), Math.min(minCoords.y, position.y), Math.min(minCoords.z, position.z));
+            maxCoords = new Vector(Math.max(maxCoords.x, position.x), Math.max(maxCoords.y, position.y), Math.max(maxCoords.z, position.z));
+        }
+
+        return new AABB(minCoords, maxCoords);
     }
 
     getSupport(direction, transform = Matrix.identity) {

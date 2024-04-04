@@ -86,7 +86,7 @@ export class MeshRenderer extends Component {
     }
 }
 export class DirectionalLight extends Component {
-    color = "white";
+    color = new Vector(255, 255, 255, 255);
     intensity = 0.02;
     direction = new Vector(0, 0.5, -1).normalize();
 

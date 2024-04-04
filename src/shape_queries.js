@@ -11,6 +11,10 @@ export class AABB {
             this.max.y < other.min.y || this.min.y > other.max.y);
     }
 
+    translate(offset) {
+        return new AABB(this.min.add(offset), this.max.add(offset));
+    }
+
     contains(point) {
         return point.x >= this.min.x && point.x <= this.max.x &&
             point.y >= this.min.y && point.y <= this.max.y;
