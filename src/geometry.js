@@ -9,6 +9,14 @@ export class Mesh extends Serializable {
         this.faces = faces;
     }
 
+    static get typename() {
+        return 'Mesh';
+    }
+
+    get typename() {
+        return Mesh.typename;
+    }
+
     getValuesDict() {
         return 'MESH_PLACEHOLDER';
         // return {

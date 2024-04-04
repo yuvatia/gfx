@@ -9,6 +9,14 @@ export class Point extends Serializable {
         this.w = w;
     }
 
+    static get typename() {
+        return 'Point';
+    }
+
+    get typename() {
+        return Point.typename;
+    }
+
     toArray() {
         return [this.x, this.y, this.z, this.w];
     }
@@ -39,6 +47,14 @@ export class Vector extends Serializable {
     static right = new Vector(1, 0, 0);
     static up = new Vector(0, 1, 0);
     static forward = new Vector(0, 0, 1);
+
+    static get typename() {
+        return 'Vector';
+    }
+
+    get typename() {
+        return Vector.typename;
+    }
 
     isNaN() {
         return isNaN(this.x) || isNaN(this.y) || isNaN(this.z);
@@ -145,6 +161,14 @@ export class Matrix extends Serializable {
     }
 
     static identity = new Matrix();
+
+    static get typename() {
+        return 'Matrix';
+    }
+
+    get typename() {
+        return Matrix.typename;
+    }
 
     clone() {
         return new Matrix(this.elements.slice());

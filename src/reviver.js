@@ -1,7 +1,7 @@
 export class Serializable {
     constructor() {
         // All serializables auto-subscribe to Reviver
-        Reviver.register(this.constructor);
+        Reviver.register(this.constructor, this.typename || this.constructor.name);
     }
 
     // Should be overriden by subclasses
@@ -11,7 +11,7 @@ export class Serializable {
 
     toJSON() {
         return {
-            type: this.constructor.name,
+            type: this.typename || this.constructor.name,
             value: this.getValuesDict()
         };
     }
@@ -33,8 +33,8 @@ export class Reviver {
     // opt for instantiating a specialization
     static specializations_ = {};
 
-    static register(type) {
-        this.specializations_[type.name] = type;
+    static register(type, name) {
+        this.specializations_[name] = type;
     }
 
     static get specializations() {

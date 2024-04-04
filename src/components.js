@@ -13,6 +13,14 @@ export class Tag extends Component {
         super();
     }
 
+    static get typename() {
+        return 'Tag';
+    }
+    
+    get typename() {
+        return Tag.typename;
+    }
+
     toString() {
         return this.name;
     }
@@ -23,6 +31,14 @@ export class UUID extends Serializable {
 
     constructor() {
         super();
+    }
+
+    get typename() {
+        return UUID.typename;
+    }
+
+    static get typename() {
+        return 'UUID';
     }
 
     static create() {
@@ -54,6 +70,14 @@ export class UUIDComponent extends Component {
         this.uuid = UUID.create();
     }
 
+    static get typename() {
+        return 'UUIDComponent';
+    }
+
+    get typename() {
+        return UUIDComponent.typename;
+    }
+
     toString() {
         return this.value;
     }
@@ -64,6 +88,14 @@ export class MeshFilter extends Component {
     constructor() {
         super();
     }
+
+    static get typename() {
+        return 'MeshFilter';
+    }
+
+    get typename() {
+        return MeshFilter.typename;
+    }
 }
 export class Material extends Component {
     diffuse = "white";
@@ -71,6 +103,14 @@ export class Material extends Component {
 
     constructor() {
         super();
+    }
+
+    static get typename() {
+        return 'Material';
+    }
+
+    get typename() {
+        return Material.typename;
     }
 }
 export class MeshRenderer extends Component {
@@ -84,6 +124,14 @@ export class MeshRenderer extends Component {
     constructor() {
         super();
     }
+
+    static get typename() {
+        return 'MeshRenderer';
+    }
+
+    get typename() {
+        return MeshRenderer.typename;
+    }
 }
 export class DirectionalLight extends Component {
     color = new Vector(255, 255, 255, 255);
@@ -92,5 +140,13 @@ export class DirectionalLight extends Component {
 
     constructor() {
         super();
+    }
+
+    static get typename() {
+        return 'DirectionalLight';
+    }
+
+    get typename() {
+        return DirectionalLight.typename;
     }
 }

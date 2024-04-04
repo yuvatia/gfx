@@ -43,6 +43,15 @@ export class Asset extends Serializable {
         Asset.register(this);
     }
 
+    get typename() {
+        return Asset.typename;
+    }
+
+    static get typename() {
+        return 'Asset';
+    }
+
+
     getValuesDict() {
         return { ...this };
     }
@@ -62,6 +71,14 @@ export class MeshAsset extends Asset {
     constructor(name, handle = null) {
         super(name);
         this.#meshHandle = handle;
+    }
+
+    get typename() {
+        return MeshAsset.typename;
+    }
+
+    static get typename() {
+        return 'MeshAsset';
     }
 
     static empty = new MeshAsset('EmptyMesh');

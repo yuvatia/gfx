@@ -242,6 +242,14 @@ class DCELRepresentation extends Serializable {
         this.centroid = new Vector(0, 0, 0);
     }
 
+    static get typename() {
+        return 'DCELRepresentation';
+    }
+
+    get typename() {
+        return DCELRepresentation.typename;
+    }
+
     initialize(assetName) {
         const CUBE_MASH = 'HALFMESH_PLACEHOLDER';
         switch (assetName) {

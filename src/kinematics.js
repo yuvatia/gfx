@@ -121,6 +121,14 @@ export class Rigidbody extends Component {
         this.torque = Vector.zero;
     }
 
+    static get typename() {
+        return 'Rigidbody';
+    }
+
+    get typename() {
+        return Rigidbody.typename;
+    }
+
     initialize() {
         // Will validate inv mass
         this.setMass(this.mass);
@@ -381,6 +389,14 @@ export class FollowConstraint extends Component {
         this.rb1ID = rb1ID;
         this.rb2ID = rb2ID;
         this.rb1Anchor = rb1Anchor;
+    }
+
+    static get typename() {
+        return 'FollowConstraint';
+    }
+
+    get typename() {
+        return FollowConstraint.typename;
     }
 
     setRigidbodies(rb1, rb2) {

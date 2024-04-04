@@ -6,8 +6,16 @@ export class Entity extends Serializable {
     id = 0;  // Default to id: 0 generation: 0
     components = {};  // c.constructor.name: c
 
+    static get typename() {
+        return 'Entity';
+    }
+
+    get typename() {
+        return Entity.typename;
+    }
+
     hasComponent(type) {
-        const name = type.name;
+        const name = type.typename;
         return this.components[name] !== undefined;
     }
 
@@ -35,7 +43,7 @@ export class Entity extends Serializable {
     }
 
     get uuid() {
-        return this.components[UUIDComponent.name].uuid;
+        return this.components[UUIDComponent.typename].uuid;
     }
 
 }
@@ -52,6 +60,14 @@ export class Scene extends Serializable {
         this.name = name;
         this.entities = []
         this.#freelist = []
+    }
+
+    static get typename() {
+        return 'Scene';
+    }
+
+    get typename() {
+        return Scene.typename;
     }
 
     equals(other) {
@@ -86,7 +102,7 @@ export class Scene extends Serializable {
         entity.id = newId;
         // Always assign uuid
         this.addComponent(newId, UUIDComponent);
-        this.addComponent(newId, Tag).name = name;
+        this.addComponent(newId, Tag).typename = name;
         const t = this.addComponent(newId, Transform, transform.position, transform.rotation, transform.scale);
 
         return newId;
@@ -104,7 +120,7 @@ export class Scene extends Serializable {
 
     getName(entityId) {
         const tag = this.getComponent(entityId, Tag);
-        return tag.name;
+        return Tag.typename;
     }
 
 
@@ -209,13 +225,13 @@ export class Scene extends Serializable {
         const deserialized = JSON.parse(serialized, Reviver.parse);
 
         // Assign new UUID
-        deserialized.components[UUIDComponent.name].uuid = UUID.create();
+        deserialized.components[UUIDComponent.typename].uuid = UUID.create();
 
         // Clone into next entity
         const newEntityId = this.newEntity();
         const newEntity = this.entityIdToEntity(newEntityId);
         newEntity.components = deserialized.components;
-        newEntity.components[Tag.name].name += ' (Clone)';
+        newEntity.components[Tag.typename].name += ' (Clone)';
 
         return newEntityId;
     }
@@ -230,18 +246,18 @@ export class Scene extends Serializable {
     addComponent(entityId, type, ...args) {
         if (!this.isEntityValid(entityId)) return null;
         const component = new type(...args);
-        this.entityIdToEntity(entityId).components[type.name] = component;
+        this.entityIdToEntity(entityId).components[type.typename] = component;
         return component;
     }
 
     removeComponent(entityId, type) {
         if (!this.isEntityValid(entityId)) return;
-        this.entityIdToEntity(entityId).components[type.name] = undefined;
+        this.entityIdToEntity(entityId).components[type.typename] = undefined;
     }
 
     getComponent(entityId, type) {
         if (!this.isEntityValid(entityId)) return null;
-        return this.entityIdToEntity(entityId).components[type.name];
+        return this.entityIdToEntity(entityId).components[type.typename];
     }
 
     forceGetComponent(entityId, type) {
@@ -255,7 +271,7 @@ export class Scene extends Serializable {
     }
 
     getAllComponents(entityId, ...types) {
-        const typeKeys = types.forEach(t => t.name);
+        const typeKeys = types.forEach(t => t.typename || t.name);
         const components = this.entityIdToEntity(entityId).components;
         return Object.keys(components).reduce((returnValue, compName) => {
             if (typeKeys.includes(compName)) {
@@ -279,7 +295,7 @@ export class Scene extends Serializable {
 
     getComponentView(...components) {
         return this.getEntities().filter(entity => entity.hasAllOf(...components)).map(ent => {
-            return [ent.id, components.map(comp => ent.components[comp.name])];
+            return [ent.id, components.map(comp => ent.components[comp.typename || comp.name])];
         });
     }
 }

@@ -21,6 +21,14 @@ export class Transform extends Component {
         this.initialize();
     }
 
+    static get typename() {
+        return 'Transform';
+    }
+
+    get typename() {
+        return Transform.typename;
+    }
+
     initialize() {
         this.validateWorldMatrix();
     }
