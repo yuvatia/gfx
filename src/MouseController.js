@@ -109,8 +109,11 @@ export class MouseController {
 
     onMouseMove(event) {
         if (!this.#dragStart) return;
+        // Pinching handled by Camera
+        if (event.touches && event.touches.length === 2) return;
 
         event.preventDefault();
+
         const { clientX, clientY } = this.#extractRelevantDataFromEvent(event);
         const lastDragStop = this.#dragStop || this.#dragStart;
         this.#dragStop = this.#renderer.mouseToCanvas(clientX, clientY);
@@ -118,7 +121,7 @@ export class MouseController {
 
         let targetID = this.getControlledEntity();
         // If the shift key is also pressed, treat it as translating the camera
-        const isTranslation = event.shiftKey || (event.touches && event.touches.length == 2);
+        const isTranslation = event.shiftKey || (event.touches && event.touches.length === 3);
         if (isTranslation) {
             const delta = this.#dragStop.sub(lastDragStop);
             let target = targetID == MouseController.CameraId ? this.#renderer.camera.transform : this.#scene.getComponent(targetID, Transform);

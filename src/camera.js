@@ -99,20 +99,71 @@ export class Camera {
         }
     }
 
+    zoomIn(factor) {
+        const { forward: z } = this.getDirections();
+        this.transform.adjustPosition(z.scale(factor));
+    }
+
     onMouseScroll(event) {
         event.preventDefault();
-        // const z = Vector.forward;
-        const { forward: z } = this.getDirections();
-        // let toFocal = this.focalPoint.sub(this.transform.position).neg();
-        // NOTES!
-        // x is reversed
-        // toFocal = new Vector(-toFocal.x, toFocal.y, toFocal.z);
-        // const z = toFocal.normalize();
-        console.log(z);
-        // let distance = toFocal.magnitude();
-        // let scale = event.deltaY * Math.min(1, distance / 500);
-        this.transform.adjustPosition(z.scale(event.deltaY * 0.1));
+        this.zoomIn(event.deltaY * 0.1);
     };
+
+    onMouseDown(event) {
+        if (event.type === 'touchstart') {
+            this.onTouchStart(event);
+        }
+    }
+
+    onMouseUp(event) {
+        if (event.type === 'touchend') {
+            this.onTouchEnd(event);
+        }
+    }
+
+    onMouseMove(event) {
+        if (event.type === 'touchmove') {
+            this.onTouchMove(event);
+        }
+    }
+
+    onTouchStart(event) {
+        if (event.touches.length === 2) {
+            const touch1 = event.touches[0];
+            const touch2 = event.touches[1];
+            const x1 = touch1.clientX;
+            const y1 = touch1.clientY;
+            const x2 = touch2.clientX;
+            const y2 = touch2.clientY;
+            const dx = x2 - x1;
+            const dy = y2 - y1;
+            this.lastDistance = Math.sqrt(dx * dx + dy * dy);
+        }
+    }
+
+    onTouchMove(event) {
+        if (event.touches.length === 2) {
+            const touch1 = event.touches[0];
+            const touch2 = event.touches[1];
+            const x1 = touch1.clientX;
+            const y1 = touch1.clientY;
+            const x2 = touch2.clientX;
+            const y2 = touch2.clientY;
+            const dx = x2 - x1;
+            const dy = y2 - y1;
+            const isZoomOut = dx * dx + dy * dy > this.lastDistance * this.lastDistance;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            if (this.lastDistance) {
+                const factor = distance / this.lastDistance;
+                this.zoomIn(factor * 10 * (isZoomOut ? -1 : 1));
+            }
+            this.lastDistance = distance;
+        }
+    }
+
+    onTouchEnd(event) {
+        this.lastDistance = null;
+    }
 
     validateViewMatrix() {
         this.viewMatrix = this.transform.getViewMatrix();
