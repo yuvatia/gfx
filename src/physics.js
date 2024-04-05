@@ -169,9 +169,18 @@ export class PhysicsSystem {
     #collectCollisions(debugRenderer) {
         this.#contactContraints = [];
         for (let [ent1Id, [rb1]] of this.#rigidBodies) {
+            // If rb1 has no collider, skip
+            if (rb1.getColliderType() === Rigidbody.ColliderType.NONE || !rb1.hasCollisions) {
+                continue;
+            }
+
             for (let [ent2Id, [rb2]] of this.#rigidBodies) {
                 if (ent2Id == ent1Id) {
                     break;
+                }
+
+                if (rb2.getColliderType() === Rigidbody.ColliderType.NONE || !rb2.hasCollisions) {
+                    continue;
                 }
 
                 const contacts = this.getCollisionContactIfColliding(rb1, rb2, debugRenderer);

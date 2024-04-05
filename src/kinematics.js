@@ -5,6 +5,7 @@ import { Cube } from "./geometry.js";
 import { DCELRepresentation } from "./halfmesh.js";
 import { Matrix, Vector } from "./math.js";
 import { Contact } from "./oven/contact.js";
+import { Serializable } from "./reviver.js";
 import { createContacts } from "./sat_contact_creation.js";
 
 const getCubeInertiaTensor = (a, b, c, mass) => {
@@ -68,16 +69,55 @@ export const getInverseCubeInertiaTensorFromTransform = (transform, mass) => {
     return rotationMatrix.multiplyMatrix(inverseI0).multiplyMatrix(invertedRotationMatrix);
 }
 
-export class SphereCollider {
-    meshRef = null;
+export class SphereCollider extends Serializable {
+    #meshRef = null;
+    constructor() {
+        super();
+    }
+
+    get meshRef() {
+        return this.meshRef;
+    }
+
+    static get typename() {
+        return 'SphereCollider';
+    }
+
+    get typename() {
+        return SphereCollider.typename;
+    }
 }
 
 export class BoxCollider {
-    meshRef = MeshAsset.get('Cube');
+    #meshRef = MeshAsset.get('Cube');
+
+    get meshRef() {
+        return this.#meshRef;
+    }
+
+    get typename() {
+        return BoxCollider.typename;
+    }
+
+    static get typename() {
+        return 'BoxCollider';
+    }
 }
 
 export class MeshCollider {
-    meshRef = null;
+    #meshRef = null;
+
+    get meshRef() {
+        return this.#meshRef;
+    }
+
+    get typename() {
+        return MeshCollider.typename;
+    }
+
+    static get typename() {
+        return 'MeshCollider';
+    }
 }
 
 export class Rigidbody extends Component {
@@ -86,7 +126,7 @@ export class Rigidbody extends Component {
     transform = null;
 
     linearVelocity = new Vector(0, 0, 0);
-    angularVelocity = new Vector(1000, 3000, 0);
+    angularVelocity = new Vector(0, 0, 0);
 
     friction = 1.0;
     restitution = 0.0;
@@ -96,29 +136,22 @@ export class Rigidbody extends Component {
 
     gravityScale = 0.0;
 
-    collider = null; // Not editable at the moment sadly?
+    colliderType = Rigidbody.ColliderType.BOX;
+    hasCollisions = true;
+    #collider = null;
 
-    constructor(transform = null, mass = 1, linearVelocity = null, angularVelocity = null, collider = null) {
+    constructor() {
         super();
+        this.force = Vector.zero.clone();
+        this.torque = Vector.zero.clone();
+    }
 
-        this.setTransform(transform);
-        this.setMass(mass);
-
-        this.linearVelocity = linearVelocity || new Vector(0, 0, 0);
-        this.angularVelocity = angularVelocity || new Vector(0, 0, 0);
-
-        this.friction = 1.0;
-        this.restitution = 0;
-
-        this.angularDamping = 0.999;
-        this.linearDamping = 0.999;
-
-        this.collider = collider || new BoxCollider();
-
-        this.gravityScale = 0.0;
-
-        this.force = Vector.zero;
-        this.torque = Vector.zero;
+    get collider() {
+        if (this.#collider === null) {
+            const type = this.getColliderClass();
+            this.#collider = new type();
+        }
+        return this.#collider;
     }
 
     static get typename() {
@@ -135,27 +168,30 @@ export class Rigidbody extends Component {
     }
 
     static ColliderType = {
-        SPHERE: "sphere",
-        BOX: "box",
-        MESH: "mesh"
+        NONE: "None",
+        SPHERE: "Sphere",
+        BOX: "Box",
+        MESH: "Mesh"
     };
 
     setTransform(transform) {
         this.transform = transform;
     }
 
+    getColliderClass() {
+        switch (this.colliderType) {
+            case Rigidbody.ColliderType.NONE:
+            case Rigidbody.ColliderType.BOX:
+                return BoxCollider;
+            case Rigidbody.ColliderType.SPHERE:
+                return SphereCollider;
+            case Rigidbody.ColliderType.MESH:
+                return MeshCollider;
+        }
+    }
+
     getColliderType() {
-        if (this.collider === null || this.collider.constructor === undefined) {
-            return Rigidbody.ColliderType.BOX;
-        }
-        switch (this.collider.constructor) {
-            case BoxCollider:
-                return Rigidbody.ColliderType.BOX;
-            case SphereCollider:
-                return Rigidbody.ColliderType.SPHERE;
-            case MeshCollider:
-                return Rigidbody.ColliderType.MESH;
-        }
+        return this.colliderType;
     }
 
     get massInv() {

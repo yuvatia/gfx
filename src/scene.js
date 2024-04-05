@@ -102,7 +102,7 @@ export class Scene extends Serializable {
         entity.id = newId;
         // Always assign uuid
         this.addComponent(newId, UUIDComponent);
-        this.addComponent(newId, Tag).typename = name;
+        this.addComponent(newId, Tag).name = name;
         const t = this.addComponent(newId, Transform, transform.position, transform.rotation, transform.scale);
 
         return newId;

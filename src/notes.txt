@@ -1,7 +1,8 @@
 /*
 Bugs1:
 1. Camera doesn't rotate around focal point
-1. need to resolve arcball and lookat and new perspective clip
+2. need to resolve arcball and lookat and new perspective clip
+3. EDITOR: weirdness when resizing - canvas keeps growing uncontrollably
 */
 
 

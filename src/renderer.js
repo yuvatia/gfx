@@ -54,7 +54,7 @@ export class Renderer {
     getName() {
         return 'Renderer';
     }
-    
+
     worldToEye(point) {
         // return point;
         const eyeSpace = this.camera.getViewMatrix().multiplyPoint(point);
@@ -149,7 +149,9 @@ export class Renderer {
 
     onViewportResize() {
         // const [newWidth, newHeight] = [window.innerWidth, window.innerHeight];
-        const [newWidth, newHeight] = [this.canvas.parentNode.clientWidth, this.canvas.parentNode.clientHeight];
+        // const [newWidth, newHeight] = [this.canvas.parentNode.clientWidth, this.canvas.parentNode.clientHeight];
+        const rect = this.canvas.parentNode.getBoundingClientRect();
+        const [newWidth, newHeight] = [rect.width, rect.height * 0.94];  // Account for margin
         this.canvas.width = newWidth;
         this.canvas.height = newHeight;
 
@@ -159,13 +161,13 @@ export class Renderer {
         this.ctx.translate(this.canvasTranslation.x, this.canvasTranslation.y);
         this.ctx.imageSmoothingQuality = "high";
 
-        this.stencilBuffer.width = newWidth;
-        this.stencilBuffer.height = newHeight;
+        this.stencilBuffer.width = this.canvas.width;
+        this.stencilBuffer.height = this.canvas.height;
         this.stencilBufferCtx = this.stencilBuffer.getContext("2d", { willReadFrequently: true });
         this.stencilBufferCtx.translate(this.canvasTranslation.x, this.canvasTranslation.y);
 
-        this.depthBuffer.width = newWidth;
-        this.depthBuffer.height = newHeight;
+        this.depthBuffer.width = this.canvas.width;
+        this.depthBuffer.height = this.canvas.height;
         this.depthBufferCtx = this.depthBuffer.getContext("2d");
         this.depthBufferCtx.translate(this.canvasTranslation.x, this.canvasTranslation.y);
 
@@ -587,7 +589,7 @@ export class RenderSystem {
     getName() {
         return 'Render System';
     }
-    
+
     onFrameStart(scene, renderer, dt) {
         renderer.start(dt);
         renderer.camera.validateViewMatrix();
