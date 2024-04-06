@@ -123,8 +123,16 @@ export class MouseController {
         // If the shift key is also pressed, treat it as translating the camera
         const isTranslation = event.shiftKey || (event.touches && event.touches.length === 3);
         if (isTranslation) {
-            const delta = this.#dragStop.sub(lastDragStop);
+            let delta = this.#dragStop.sub(lastDragStop);
+            const isInLocalSpace = false;
+            if (!isInLocalSpace) {
+                delta = this.#renderer.camera.getViewMatrix().multiplyVector(delta);
+            }
             let target = targetID == MouseController.CameraId ? this.#renderer.camera.transform : this.#scene.getComponent(targetID, Transform);
+            if (!target) {
+                console.log(`Invalid target with ID ${targetID}`)
+                return;
+            }
             target.adjustPosition(delta);
         } else {
             // Arcball rotation (Incremenetal)
