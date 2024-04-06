@@ -57,17 +57,18 @@ export class Director {
         this.lastFrameTime = null;
 
         this.RenderSignalEmitter = new SignalEmitter();
-
-        window.addEventListener("resize", this.onViewportResize.bind(this));
     }
 
     unsubscribeFromEvents() {
-        window.removeEventListener("resize", this.onViewportResize.bind(this));
-
         document.removeEventListener('keydown', this.onKeydownEvent.bind(this));
 
         const targetCanvas = this.renderer.canvas;
+
         if (!this.renderer || !targetCanvas) return;
+
+        window.removeEventListener("resize", this.onViewportResize.bind(this));
+        targetCanvas.removeEventListener("resize", this.onViewportResize.bind(this));
+
         targetCanvas.removeEventListener('wheel', this.onMouseScroll.bind(this));
         targetCanvas.removeEventListener('click', this.onMouseClick.bind(this));
 
@@ -106,6 +107,9 @@ export class Director {
     setRenderer(renderer) {
         this.renderer = renderer;
         const targetCanvas = this.renderer.canvas;
+
+        window.addEventListener("resize", this.onViewportResize.bind(this));
+        targetCanvas.addEventListener("resize", this.onViewportResize.bind(this));
 
         targetCanvas.addEventListener('wheel', this.onMouseScroll.bind(this));
         document.addEventListener('keydown', this.onKeydownEvent.bind(this));

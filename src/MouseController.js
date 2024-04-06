@@ -86,6 +86,8 @@ export class MouseController {
 
     onMouseClick(event) {
         if (!event.ctrlKey) return;
+        // Don't select if it's a touch event with more than 1 touches
+        if (event.touches && event.touches.length > 1) return;
         event.preventDefault();
         const { clientX, clientY } = this.#extractRelevantDataFromEvent(event);
         this.selectEntityAtClientXY(clientX, clientY);
@@ -97,14 +99,26 @@ export class MouseController {
         if (this.isEntityAtClientXYDifferentThanSelected(clientX, clientY)) {
             event.preventDefault();
         }
+
+        this.#dragStart = this.#renderer.mouseToCanvas(clientX, clientY);
+        this.#dragStop = null;
+
+        // Don't select if it's a touch event with more than 1 touches
+        if (event.touches && event.touches.length > 1) {
+            // Cancel active timer
+            clearTimeout(this.longPressTimer);
+            this.longPressTimer = null;
+            return;
+        }
+        // Don't select if currently in shift/ctrl
+        if (event.shiftKey || event.ctrlKey) return;
+
         const predictedEntity = this.getEntityAtClientXY(clientX, clientY);
         this.longPressTimer = setTimeout(() => {
             if (this.getEntityAtClientXY(clientX, clientY) === predictedEntity) {
                 this.selectEntityAtClientXY(clientX, clientY);
             }
         }, 200);
-        this.#dragStart = this.#renderer.mouseToCanvas(clientX, clientY);
-        this.#dragStop = null;
     }
 
     onMouseMove(event) {

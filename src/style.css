@@ -32,7 +32,7 @@ canvas {
     margin: 5% 0;
 }
 
-#canvas-container {
+.canvas-container {
     display: flex;
     justify-content: center;
     align-items: center;
