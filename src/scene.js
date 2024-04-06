@@ -120,7 +120,7 @@ export class Scene extends Serializable {
 
     getName(entityId) {
         const tag = this.getComponent(entityId, Tag);
-        return Tag.typename;
+        return tag.name;
     }
 
 
