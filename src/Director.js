@@ -218,7 +218,7 @@ export class Director {
         if (!this.lastFrameTime) this.lastFrameTime = timestamp;
         const elapsed = timestamp - this.lastFrameTime;
 
-        if (elapsed >= this.fpsInterval) {
+        if (elapsed >= this.fpsInterval && this.isVisibile()) {
             this.RenderSignalEmitter.signalAll();
             this.onFrameStart(elapsed);
             this.onFixedStep(elapsed);
@@ -228,6 +228,14 @@ export class Director {
 
         // Keep scheduling next animation frame
         requestAnimationFrame(this.#animationTickHandler.bind(this));
+    }
+
+    isVisibile() {
+        if (!this.renderer || !this.renderer.canvas) return false;
+        const element = this.renderer.canvas;
+        const visible = element.checkVisibility();
+        if (!visible) return false;
+        return !!(element.offsetWidth || element.offsetHeight || element.getClientRects().length);
     }
 
 

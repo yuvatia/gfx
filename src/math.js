@@ -17,6 +17,10 @@ export class Point extends Serializable {
         return Point.typename;
     }
 
+    clone() {
+        return new Point(this.x, this.y, this.z, this.w);
+    }
+
     toArray() {
         return [this.x, this.y, this.z, this.w];
     }

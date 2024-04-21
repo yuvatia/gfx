@@ -14,10 +14,12 @@ export class RendererPrefrences {
         this.perspectiveClipEnabled = true;
 
         // this.clearColors = "rgba(0, 0, 255, 0.1)";
-        // this.clearColors = 'transparent';
-        this.clearColors = "gray";
+        this.clearColors = 'transparent';
+        // this.clearColors = "gray";
 
         this.wireframeMode = false;
+
+        this.debugPrint = false;
     }
 
     static default = new RendererPrefrences();
@@ -234,8 +236,10 @@ export class Renderer {
         const frameRate = (1000 / dt);
 
         // this.drawXYGrid2D();
-        this.ctx.fillText(`FPS: ${frameRate.toFixed(0)}`, this.canvas.width * 0.8, 20);
-        this.ctx.fillText(`Camera: ${this.camera.transform.position.toString()}`, this.canvas.width * 0.8, 40);
+        if (this.preferences.debugPrint) {
+            this.ctx.fillText(`FPS: ${frameRate.toFixed(0)}`, this.canvas.width * 0.8, 20);
+            this.ctx.fillText(`Camera: ${this.camera.transform.position.toString()}`, this.canvas.width * 0.8, 40);
+        }
         this.restoreCanvasState();
     }
 
@@ -449,10 +453,28 @@ export class Renderer {
     }
 }
 
+
+
 class BasicShader {
     constructor(renderer) {
         this.scene = null;
         this.renderer = renderer;
+
+        // this.worker = new Worker('renderer_worker.js');
+        // this.worker.onmessage = function (event) {
+        //     const { path, transform, color, overrideFillWithWireframeValue, applyPerspectiveDivision, drawPoints, stencilID, outlineColor } = event.data;
+        //     this.renderer.drawPath(
+        //         path,
+        //         transform,
+        //         color,
+        //         overrideFillWithWireframeValue,
+        //         applyPerspectiveDivision,
+        //         drawPoints,
+        //         stencilID,
+        //         outlineColor
+        //     );
+        // };
+
     }
 
     setActiveScene(scene) {
@@ -477,7 +499,7 @@ class BasicShader {
         }
     }
 
-    drawMeshDCEL = (mesh, modelMatrix, material, entityId, renderPrefs) => {
+    calculateFace = (face, modelMatrix, material, entityId, renderPrefs, i) => {
         const colorNames = [
             "blue",
             "red",
@@ -487,62 +509,88 @@ class BasicShader {
             "pink"
         ]
 
-        const drawFace = (face, modelMatrix, i, entityId) => {
-            const faceVerts = face.getVertices();
-            const faceNormal = face.GetFaceNormal();
-            // We now apply simple shading by taking faceNormal times directional light vector
-            // We use Lamber's cosine law to calculate the color
-            let worldNormal = modelMatrix.multiplyVector(faceNormal).normalize();
+        const faceVerts = face.getVertices();
+        const faceNormal = face.GetFaceNormal();
+        // We now apply simple shading by taking faceNormal times directional light vector
+        // We use Lamber's cosine law to calculate the color
+        let worldNormal = modelMatrix.multiplyVector(faceNormal).normalize();
 
-            // TOOD support multiple light sources
-            let finalDiffuse =
-                material.faceColoring ? colorNames[i % colorNames.length] : material.diffuse;
-            if (this.renderer.preferences.shadingEnabled && renderPrefs.shading) {
-                for (let directionalLight of this.directionalLightSources) {
-                    const lightDirection = directionalLight.direction;
-                    const lightColor = directionalLight.color;
-                    const lightIntensity = directionalLight.intensity;
+        // TOOD support multiple light sources
+        let finalDiffuse =
+            material.faceColoring ? colorNames[i % colorNames.length] : material.diffuse;
+        if (this.renderer.preferences.shadingEnabled && renderPrefs.shading) {
+            for (let directionalLight of this.directionalLightSources) {
+                const lightDirection = directionalLight.direction;
+                const lightColor = directionalLight.color;
+                const lightIntensity = directionalLight.intensity;
 
-                    let brightness = lightIntensity * Math.max(lightDirection.dotProduct(worldNormal), 0);
-                    const combinedColor = new Vector(
-                        lightColor.x * material.diffuse.x,
-                        lightColor.y * material.diffuse.y,
-                        lightColor.z * material.diffuse.z);
+                let brightness = lightIntensity * Math.max(lightDirection.dotProduct(worldNormal), 0);
+                const combinedColor = new Vector(
+                    lightColor.x * material.diffuse.x,
+                    lightColor.y * material.diffuse.y,
+                    lightColor.z * material.diffuse.z);
 
-                    // const diffuse = lightColor.multiply(brightness);
-                    finalDiffuse = combinedColor.scale(brightness); // TODO: account for own color
-                }
+                // const diffuse = lightColor.multiply(brightness);
+                finalDiffuse = combinedColor.scale(brightness); // TODO: account for own color
             }
-            finalDiffuse =
-                typeof finalDiffuse === 'string' ?
-                    finalDiffuse :
-                    `rgba(${finalDiffuse.x}, ${finalDiffuse.y}, ${finalDiffuse.z}, 1)`;
+        }
+        finalDiffuse =
+            typeof finalDiffuse === 'string' ?
+                finalDiffuse :
+                `rgba(${finalDiffuse.x}, ${finalDiffuse.y}, ${finalDiffuse.z}, ${material.faceColoring ? 1 : material.diffuse.w})`;
 
-            let outlineColor = finalDiffuse;
-            if (renderPrefs.outline) {
-                outlineColor = "red";
-                // Make outline wide
-                this.renderer.ctx.lineWidth = 2;
-            } else {
-                this.renderer.ctx.lineWidth = 1;
-            }
+        let outlineColor = finalDiffuse;
+        if (renderPrefs.outline) {
+            outlineColor = "red";
+            // Make outline wide
+            this.renderer.ctx.lineWidth = 2;
+        } else {
+            this.renderer.ctx.lineWidth = 1;
+        }
 
-            return this.renderer.drawPath(
-                faceVerts,
-                modelMatrix,
-                finalDiffuse,
-                renderPrefs.wireframe,
-                true,
-                false,
-                renderPrefs.writeIdToStencil ? `rgba(${(entityId >> 16) & 0xFF}, ${(entityId >> 8) & 0xFF}, ${entityId & 0xFF}, 1)` : null,
+        const stencilId = renderPrefs.writeIdToStencil ? `rgba(${(entityId >> 16) & 0xFF}, ${(entityId >> 8) & 0xFF}, ${entityId & 0xFF}, 1)` : null;
+
+        return {
+            path: faceVerts,
+            transform: modelMatrix,
+            color: finalDiffuse,
+            overrideFillWithWireframeValue: renderPrefs.wireframe,
+            applyPerspectiveDivision: true,
+            drawPoints: false,
+            stencilID: stencilId,
+            outlineColor: outlineColor
+        };
+    };
+
+    drawMeshDCEL = (mesh, modelMatrix, material, entityId, renderPrefs) => {
+        mesh.faces.forEach((face, i) => {
+            const faceRes = this.calculateFace(face, modelMatrix, material, entityId, renderPrefs, i);
+            const { path, transform, color, overrideFillWithWireframeValue, applyPerspectiveDivision, drawPoints, stencilID, outlineColor } = faceRes;
+            this.renderer.drawPath(
+                path,
+                transform,
+                color,
+                overrideFillWithWireframeValue,
+                applyPerspectiveDivision,
+                drawPoints,
+                stencilID,
                 outlineColor
             );
-        };
-
-        mesh.faces.forEach((face, i) => {
-            drawFace(face, modelMatrix, i, entityId);
         });
     }
+
+    // drawMeshDCEL = (mesh, modelMatrix, material, entityId, renderPrefs) => {
+    //     mesh.faces.forEach((face, i) => {
+    //         this.worker.postMessage({
+    //             face: face,
+    //             modelMatrix: modelMatrix,
+    //             material: material,
+    //             entityId: entityId,
+    //             renderPrefs: renderPrefs,
+    //             i: i
+    //         });
+    //     });
+    // }
 
     // SimpleMesh rendering
     drawSimpleMesh = (mesh, modelMatrix, material, entityId, renderPrefs) => {
@@ -597,7 +645,7 @@ export class RenderSystem {
 
     renderScene(scene, renderer, dt) {
         this.renderer = renderer;
-        this.shader = new BasicShader(this.renderer);
+        this.shader = this.shader || new BasicShader(this.renderer);
         this.shader.setActiveScene(scene);
 
         const frameRenderInfo = scene.getView(Transform, MeshFilter, Material).map(entId => {
